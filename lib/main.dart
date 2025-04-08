@@ -15,22 +15,21 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0075FF), // Cor terciária
-          primary: const Color.fromRGBO(43, 43, 43, 1), // Cor principal
-          secondary: const Color.fromRGBO(66, 66, 66, 1), // Cor secundária
+          seedColor: const Color(0xFF0075FF),
+          primary: const Color.fromRGBO(43, 43, 43, 1),
+          secondary: const Color.fromRGBO(66, 66, 66, 1),
           onPrimary: Colors.white,
           onSecondary: Colors.white,
         ),
         scaffoldBackgroundColor: const Color(0xFF2A2A2A),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF424242), // Cor secundária
+          backgroundColor: Color(0xFF424242),
           foregroundColor: Colors.white,
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: Color(0xFF0075FF), // Cor terciária
         ),
       ),
-      // home: Menu(),
       home: Login(),
     );
   }

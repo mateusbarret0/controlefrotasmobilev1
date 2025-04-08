@@ -16,7 +16,8 @@ class _LoginState extends State<Login> {
   final TextEditingController _passwordController = TextEditingController();
 
   final ApiService apiService = ApiService();
-  List<dynamic> dados = [];
+  Map<String, dynamic>?
+  loginResponseData; // Variável para armazenar a resposta do login
 
   Future<void> _login() async {
     try {
@@ -36,17 +37,20 @@ class _LoginState extends State<Login> {
       };
 
       final response = await apiService.postData(loginData);
+
       if (response['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Sucesso ao fazer login'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        setState(() {
+          loginResponseData = response; // Armazena a resposta completa do login
+        });
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const Menu()),
+          MaterialPageRoute(
+            builder:
+                (context) => Menu(
+                  userData: loginResponseData!,
+                ), // Passa os dados completos do login
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
