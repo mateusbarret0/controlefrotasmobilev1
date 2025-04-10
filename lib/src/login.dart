@@ -21,7 +21,10 @@ class _LoginState extends State<Login> {
 
   Future<void> _login() async {
     try {
+      print('Iniciando processo de login...'); // Debug
+
       if (_userController.text.isEmpty || _passwordController.text.isEmpty) {
+        print('Campos vazios detectados'); // Debug
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Por favor, preencha todos os campos'),
@@ -36,23 +39,25 @@ class _LoginState extends State<Login> {
         'senha': _passwordController.text,
       };
 
+      print('Enviando dados para API...');
       final response = await apiService.postData(loginData);
+      print('Resposta completa: ${response.toString()}');
 
-      if (response['success'] == true) {
+      if (response['success'] == true ||
+          response['success']?.toString().toLowerCase() == 'true') {
+        print('Login bem-sucedido, navegando para Menu...');
         setState(() {
-          loginResponseData = response; // Armazena a resposta completa do login
+          loginResponseData = response;
         });
 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder:
-                (context) => Menu(
-                  userData: loginResponseData!,
-                ), // Passa os dados completos do login
+            builder: (context) => Menu(userData: loginResponseData!),
           ),
         );
       } else {
+        print('Login falhou: ${response['message']}'); // Debug
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(response['message'] ?? 'Erro ao fazer login'),
@@ -61,6 +66,7 @@ class _LoginState extends State<Login> {
         );
       }
     } catch (e) {
+      print('Erro durante o login: $e'); // Debug importante!
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Erro ao conectar com o servidor'),
