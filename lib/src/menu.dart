@@ -96,13 +96,22 @@ class _MenuState extends State<Menu> {
       print("Erro: ID do usuário não encontrado nos dados `userInfo`.");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
+          SnackBar(
+            content: const Text(
               "Erro crítico: ID do usuário ausente. Contate o suporte.",
+              style: TextStyle(fontSize: 14),
             ),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            duration: const Duration(seconds: 3),
           ),
         );
+
         _navegarParaLogin();
       }
       return;
@@ -126,18 +135,33 @@ class _MenuState extends State<Menu> {
             userInfo['data']['termo'] = 's';
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Termo de responsabilidade aceito com sucesso!"),
+            SnackBar(
+              content: const Text(
+                "Termo de responsabilidade aceito com sucesso!",
+              ),
               backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "Termo de responsabilidade não aceito. Redirecionando...",
+            SnackBar(
+              content: const Text(
+                "Você precisa aceitar o termo de responsabilidade para continuar.",
+                style: TextStyle(fontSize: 14),
               ),
               backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           );
           _navegarParaLogin();
@@ -150,6 +174,12 @@ class _MenuState extends State<Menu> {
               "Erro ao salvar atualização do termo (${status == 'S' ? 'Aceite' : 'Recusa'}): ${result['message']}",
             ),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
         _navegarParaLogin();
@@ -158,11 +188,17 @@ class _MenuState extends State<Menu> {
       print("Erro de conexão ao tentar atualizar termo para '$status': $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
+          SnackBar(
+            content: const Text(
               "Erro de conexão ao atualizar termo. Verifique sua internet.",
             ),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -246,8 +282,22 @@ class _MenuState extends State<Menu> {
                     IconButton(
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Configurações (a implementar)'),
+                          SnackBar(
+                            content: const Text(
+                              'Configurações (a implementar)',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         );
                       },

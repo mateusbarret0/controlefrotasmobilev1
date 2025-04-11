@@ -25,9 +25,15 @@ class _LoginState extends State<Login> {
       if (_userController.text.isEmpty || _passwordController.text.isEmpty) {
         print('Campos vazios detectados');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Por favor, preencha todos os campos'),
+          SnackBar(
+            content: const Text('Por favor, preencha todos os campos'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
         return;
@@ -46,7 +52,18 @@ class _LoginState extends State<Login> {
         setState(() {
           loginResponseData = response;
         });
-
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message']),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -54,20 +71,30 @@ class _LoginState extends State<Login> {
           ),
         );
       } else {
-        print('Login falhou: ${response['message']}'); // Debug
+        print('Login falhou: ${response['message']}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(response['message'] ?? 'Erro ao fazer login'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
     } catch (e) {
-      print('Erro durante o login: $e'); // Debug importante!
+      print('Erro durante o login: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erro ao conectar com o servidor'),
+        SnackBar(
+          content: const Text('Erro ao conectar com o servidor'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       );
     }
