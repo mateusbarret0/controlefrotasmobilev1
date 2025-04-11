@@ -1,11 +1,24 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  //final String baseUrl = "http://10.0.2.2:8000/api"; //mobile
-  final String baseUrl = "http://127.0.0.1:8000/api"; //web
+  final String baseUrl = "http://localhost:8000/api";
 
-  Future<Map<String, dynamic>> postData(Map<String, dynamic> data) async {
+  Future<String?> getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  Future<Map<String, String>> _getAuthHeaders() async {
+    final token = await getToken();
+    return {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer $token",
+    };
+  }
+
+  Future<Map<String, dynamic>> login(Map<String, dynamic> data) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/login'),
@@ -16,11 +29,16 @@ class ApiService {
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Garante que a resposta sempre terá o campo 'success' como bool
+        final data = jsonDecode(response.body);
+        final token = data['token'];
+
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', token);
+
         return {
           'success': true,
-          ...responseData, // Mantém todos os dados originais da resposta
-          'message': responseData['message'] ?? 'Login bem-sucedido',
+          'message': 'Login realizado com sucesso',
+          'data': data,
         };
       } else {
         return {
@@ -38,10 +56,12 @@ class ApiService {
 
   Future<Map<String, dynamic>> getUsur(Map<String, dynamic> userData) async {
     try {
+      final headers = await _getAuthHeaders();
       final response = await http.get(
         Uri.parse(
           '$baseUrl/get/usur?usuario=${userData['usuario']}&senha=${userData['senha']}',
         ),
+        headers: headers,
       );
 
       if (response.statusCode == 200 && response.body.isNotEmpty) {
@@ -62,16 +82,13 @@ class ApiService {
 
   Future<Map<String, dynamic>> linkDriverToVehicle({
     required String vehicleHash,
-    // required String driverId, // Obter do estado de login
   }) async {
     try {
+      final headers = await _getAuthHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/vehicles/link-driver'),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          'vehicle_hash': vehicleHash,
-          // 'driver_id': driverId,
-        }),
+        headers: headers,
+        body: jsonEncode({'vehicle_hash': vehicleHash}),
       );
 
       return jsonDecode(response.body);
@@ -85,9 +102,10 @@ class ApiService {
     required String driverId,
   }) async {
     try {
+      final headers = await _getAuthHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/routes/start'),
-        headers: {"Content-Type": "application/json"},
+        headers: headers,
         body: jsonEncode({
           'vehicle_id': vehicleId,
           'driver_id': driverId,
@@ -97,6 +115,30 @@ class ApiService {
 
       return jsonDecode(response.body);
     } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> atualizarTermo(int id, String status) async {
+    print('Atualizando termo com ID: $id e status: $status');
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/termo/atualizar'),
+        headers: headers,
+        body: jsonEncode({'id': id, 'status': status}),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {
+          'success': false,
+          'message': 'Erro no servidor: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print("Erro na requisição: $e");
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }

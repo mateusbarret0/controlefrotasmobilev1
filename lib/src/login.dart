@@ -16,15 +16,14 @@ class _LoginState extends State<Login> {
   final TextEditingController _passwordController = TextEditingController();
 
   final ApiService apiService = ApiService();
-  Map<String, dynamic>?
-  loginResponseData; // Variável para armazenar a resposta do login
+  Map<String, dynamic>? loginResponseData;
 
   Future<void> _login() async {
     try {
       print('Iniciando processo de login...'); // Debug
 
       if (_userController.text.isEmpty || _passwordController.text.isEmpty) {
-        print('Campos vazios detectados'); // Debug
+        print('Campos vazios detectados');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Por favor, preencha todos os campos'),
@@ -36,12 +35,10 @@ class _LoginState extends State<Login> {
 
       Map<String, dynamic> loginData = {
         'usuario': _userController.text,
-        'senha': _passwordController.text,
+        'password': _passwordController.text,
       };
 
-      print('Enviando dados para API...');
-      final response = await apiService.postData(loginData);
-      print('Resposta completa: ${response.toString()}');
+      final response = await apiService.login(loginData);
 
       if (response['success'] == true ||
           response['success']?.toString().toLowerCase() == 'true') {

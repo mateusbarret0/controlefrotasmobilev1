@@ -1,6 +1,8 @@
 import 'package:controlefrotasmobilev1/src/consultarViagem.dart';
+import 'package:controlefrotasmobilev1/src/login.dart';
 import 'package:flutter/material.dart';
 import 'scanner_screen.dart';
+import '../services/api.dart';
 
 class Menu extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -12,20 +14,195 @@ class Menu extends StatefulWidget {
 }
 
 class _MenuState extends State<Menu> {
+  late Map<String, dynamic> userInfo;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    userInfo =
+        widget.userData['data'] is Map<String, dynamic>
+            ? Map<String, dynamic>.from(widget.userData['data'])
+            : {};
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _verificarEExibirTermos();
+    });
+  }
+
+  void _verificarEExibirTermos() {
+    if (!mounted) return;
+    final termoAceito = userInfo['data']['termo'];
+    if (termoAceito == null || termoAceito.toString().toLowerCase() != 's') {
+      _mostrarTermoDeResponsabilidade();
+    }
+  }
+
+  Future<void> _mostrarTermoDeResponsabilidade() async {
+    if (!mounted) return;
+
+    final aceitou = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color.fromRGBO(66, 66, 66, 1),
+          title: const Text(
+            'Termo de Responsabilidade',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: const SingleChildScrollView(
+            child: Text(
+              'Ao continuar, você declara estar ciente de que é responsável pelo uso adequado dos veículos da frota e pelo registro fiel das rotas realizadas durante sua operação, seguindo as normas e procedimentos estabelecidos pela empresa.',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed:
+                  _isLoading ? null : () => Navigator.of(context).pop(true),
+              child: const Text(
+                'ACEITO',
+                style: TextStyle(color: Colors.blueAccent),
+              ),
+            ),
+            TextButton(
+              onPressed:
+                  _isLoading ? null : () => Navigator.of(context).pop(false),
+              child: const Text(
+                'NÃO ACEITO',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    final String statusTermo = (aceitou == true) ? 'S' : 'N';
+
+    setState(() => _isLoading = true);
+    await _atualizarStatusTermo(statusTermo);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _atualizarStatusTermo(String status) async {
+    final id = userInfo['data']['id'];
+    if (id == null) {
+      print("Erro: ID do usuário não encontrado nos dados `userInfo`.");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Erro crítico: ID do usuário ausente. Contate o suporte.",
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        _navegarParaLogin();
+      }
+      return;
+    }
+
+    print(
+      "Tentando atualizar termo para status: '$status' para o usuário ID: $id",
+    );
+
+    try {
+      final api = ApiService();
+      final result = await api.atualizarTermo(id, status);
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        print("API confirmou atualização do termo para '$status' (ID: $id).");
+
+        if (status == 'S') {
+          setState(() {
+            userInfo['data']['termo'] = 's';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Termo de responsabilidade aceito com sucesso!"),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "Termo de responsabilidade não aceito. Redirecionando...",
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          _navegarParaLogin();
+        }
+      } else {
+        print("Falha ao atualizar termo para '$status': ${result['message']}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Erro ao salvar atualização do termo (${status == 'S' ? 'Aceite' : 'Recusa'}): ${result['message']}",
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        _navegarParaLogin();
+      }
+    } catch (e) {
+      print("Erro de conexão ao tentar atualizar termo para '$status': $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Erro de conexão ao atualizar termo. Verifique sua internet.",
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      _navegarParaLogin();
+    }
+  }
+
+  void _navegarParaLogin() {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            "Você precisa aceitar o termo de responsabilidade para continuar.",
+            style: TextStyle(fontSize: 14),
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Login()),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final userInfo =
-        widget.userData.containsKey('data') && widget.userData['data'] is Map
-            ? widget.userData['data'] as Map<String, dynamic>
-            : <String, dynamic>{};
+    final String nome =
+        userInfo['data']['nome']?.toString() ?? 'Nome Indisponível';
+    final String descricao =
+        userInfo['data']['descricao']?.toString() ?? 'Descrição Indisponível';
 
     return Scaffold(
-      backgroundColor: const Color.fromRGBO(
-        43,
-        43,
-        43,
-        1,
-      ), // Cor de fundo escura
+      backgroundColor: const Color.fromRGBO(43, 43, 43, 1),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 50),
@@ -42,13 +219,11 @@ class _MenuState extends State<Menu> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      // Use Expanded para evitar overflow se o nome for longo
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            userInfo['nome']?.toString() ??
-                                'Nome não disponível', // Mensagem mais clara
+                            nome,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 15,
@@ -58,8 +233,7 @@ class _MenuState extends State<Menu> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            userInfo['descricao']?.toString() ??
-                                'Descrição não disponível', // Mensagem mais clara
+                            descricao,
                             style: const TextStyle(
                               color: Colors.white60,
                               fontSize: 13,
@@ -78,14 +252,13 @@ class _MenuState extends State<Menu> {
                         );
                       },
                       icon: const Icon(Icons.settings, color: Colors.blue),
-                      tooltip: 'Configurações', // Adiciona dica
+                      tooltip: 'Configurações',
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
 
-              // Título "Controle de Frotas"
               const Text(
                 'Controle de Frotas',
                 style: TextStyle(
@@ -96,13 +269,10 @@ class _MenuState extends State<Menu> {
               ),
               const SizedBox(height: 16),
 
-              // Botão "Iniciar Viagem"
               _buildMenuButton(
                 title: 'Iniciar Viagem',
-                subtitle:
-                    'Escaneie o QR Code do veículo', // Subtítulo mais descritivo
+                subtitle: 'Escaneie o QR Code do veículo',
                 onTap: () {
-                  // Navega para a tela do Scanner
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -113,11 +283,9 @@ class _MenuState extends State<Menu> {
               ),
               const SizedBox(height: 12),
 
-              // Botão "Consultar Viagens"
               _buildMenuButton(
                 title: 'Consultar Viagens',
                 subtitle: 'Consulte as suas viagens já realizadas',
-                // TODO: Implementar navegação para consulta de viagens
                 onTap: () {
                   Navigator.push(
                     context,
@@ -130,17 +298,14 @@ class _MenuState extends State<Menu> {
                 },
               ),
 
-              const Spacer(), // Empurra a versão para baixo
-              // Versão Beta
+              const Spacer(),
               const Center(
                 child: Text(
-                  'ALFAID v2.8.15 - BETA', // Use o nome/versão do seu app se desejar
+                  'ALFAID v2.8.15 - BETA',
                   style: TextStyle(color: Colors.white38, fontSize: 12),
                 ),
               ),
-              const SizedBox(
-                height: 16,
-              ), // Adiciona um pequeno espaço abaixo da versão
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -148,33 +313,25 @@ class _MenuState extends State<Menu> {
     );
   }
 
-  // Helper para construir os botões do menu
   Widget _buildMenuButton({
     required String title,
     required String subtitle,
     required VoidCallback onTap,
-    IconData iconData = Icons.arrow_forward_ios, // Ícone padrão
+    IconData iconData = Icons.arrow_forward_ios,
     Color iconColor = Colors.blue,
   }) {
     return InkWell(
-      // InkWell para efeito visual ao tocar
       onTap: onTap,
-      borderRadius: BorderRadius.circular(
-        12,
-      ), // Para o efeito acompanhar a borda
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ), // Ajuste padding
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color.fromRGBO(66, 66, 66, 1), // Cor do botão
+          color: const Color.fromRGBO(66, 66, 66, 1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
             Expanded(
-              // Para o texto ocupar o espaço disponível
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -182,24 +339,20 @@ class _MenuState extends State<Menu> {
                     title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 14, // Pode ajustar o tamanho
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 12,
-                    ), // Pode ajustar o tamanho
+                    style: const TextStyle(color: Colors.white60, fontSize: 12),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 10), // Espaço entre texto e ícone
-            Icon(iconData, color: iconColor, size: 20), // Ícone à direita
-            // Removido IconButton desnecessário, InkWell já cuida do onTap
+            const SizedBox(width: 10),
+            Icon(iconData, color: iconColor, size: 20),
           ],
         ),
       ),
