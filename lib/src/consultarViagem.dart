@@ -9,7 +9,6 @@ class ConsultaViagensScreen extends StatefulWidget {
 }
 
 class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
-  // Lista de viagens com status dinâmico
   final List<Map<String, dynamic>> viagens = [
     {
       'numero': '01',
@@ -48,7 +47,8 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isSupervisor = widget.userInfo['id_tipo_usuario'] == 1;
+    print(widget.userInfo);
+    final bool isSupervisor = widget.userInfo['data']['id_tipo_usuario'] == 1;
 
     return Scaffold(
       backgroundColor: const Color(0xFF2B2B2B),
@@ -78,7 +78,7 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.userInfo['nome']?.toString() ??
+                            widget.userInfo['data']['nome']?.toString() ??
                                 'Nome não disponível',
                             style: const TextStyle(
                               color: Colors.white,
@@ -89,7 +89,7 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            widget.userInfo['descricao']?.toString() ??
+                            widget.userInfo['data']['descricao']?.toString() ??
                                 'Descrição não disponível',
                             style: const TextStyle(
                               color: Colors.white60,
