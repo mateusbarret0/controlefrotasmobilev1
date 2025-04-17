@@ -14,7 +14,7 @@ class ApiService {
     final token = await getToken();
     return {
       "Content-Type": "application/json",
-      "Authorization": "Bearer $token",
+      if (token != null) "Authorization": "Bearer $token",
     };
   }
 
@@ -49,7 +49,6 @@ class ApiService {
         };
       }
     } catch (e) {
-      print("Erro na requisição: $e");
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -75,20 +74,20 @@ class ApiService {
         };
       }
     } catch (e) {
-      print("Erro de conexão GET: $e");
       return {'success': false, 'message': 'Erro de conexão GET: $e'};
     }
   }
 
-  Future<Map<String, dynamic>> linkDriverToVehicle({
-    required String vehicleHash,
+  Future<Map<String, dynamic>> linkMotorista({
+    required List<dynamic> routeInfo,
+    required int codUsur,
   }) async {
     try {
       final headers = await _getAuthHeaders();
       final response = await http.post(
-        Uri.parse('$baseUrl/vehicles/link-driver'),
+        Uri.parse('$baseUrl/rota/linkMotorista'),
         headers: headers,
-        body: jsonEncode({'vehicle_hash': vehicleHash}),
+        body: jsonEncode({'routeInfo': routeInfo, 'codUsur': codUsur}),
       );
 
       return jsonDecode(response.body);
@@ -120,7 +119,6 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> atualizarTermo(int id, String status) async {
-    print('Atualizando termo com ID: $id e status: $status');
     try {
       final headers = await _getAuthHeaders();
       final response = await http.post(
@@ -138,8 +136,25 @@ class ApiService {
         };
       }
     } catch (e) {
-      print("Erro na requisição: $e");
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
+  }
+
+  Future<Map<String, dynamic>> insertHodometro({
+    required String quilometragem,
+    required String imageBase64,
+    required int codUsur,
+    routeInfo,
+  }) async {
+    final headers = await _getAuthHeaders();
+    final url = Uri.parse('$baseUrl/rota/hodometro/insert');
+    final body = jsonEncode({
+      'quilometragem': quilometragem,
+      'imagem': imageBase64,
+      'codUsur': codUsur,
+      'routeInfo': routeInfo,
+    });
+    final response = await http.post(url, headers: headers, body: body);
+    return jsonDecode(response.body);
   }
 }

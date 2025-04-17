@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
           foregroundColor: Colors.white,
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Color(0xFF0075FF), // Cor terciária
+          backgroundColor: Color(0xFF0075FF),
         ),
       ),
       home: Login(),

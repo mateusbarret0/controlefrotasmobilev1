@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:controlefrotasmobilev1/services/api.dart';
-import 'package:controlefrotasmobilev1/models/vehicle_model.dart'; // Modelo de veículo
+import 'package:controlefrotasmobilev1/src/verificarHodometro.dart';
+import 'dart:convert';
 
 class ScannerScreen extends StatefulWidget {
-  const ScannerScreen({super.key});
-
+  final Map<String, dynamic> userInfo;
+  const ScannerScreen({super.key, required this.userInfo});
   @override
   State<ScannerScreen> createState() => _ScannerScreenState();
 }
@@ -25,45 +26,34 @@ class _ScannerScreenState extends State<ScannerScreen> {
     super.dispose();
   }
 
-  Future<void> _linkDriverToVehicle(String qrCodeData) async {
+  Future<void> _linkMotorista(String qrCodeRawValue) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      // 1. Extrair o hash do QR Code (ajuste conforme seu formato)
-      final vehicleHash =
-          qrCodeData; // Ou extrair de um JSON se o QR contiver mais dados
+      final Map<String, dynamic> parsedData = jsonDecode(qrCodeRawValue);
+      final routeInfo = parsedData['linkDriver'];
 
-      // 2. Enviar requisição para vincular motorista ao veículo
-      final response = await _apiService.linkDriverToVehicle(
-        vehicleHash: vehicleHash,
-        // Outros dados necessários como ID do motorista
+      final int codUsur = widget.userInfo['data']['cod_usur'];
+
+      final response = await _apiService.linkMotorista(
+        routeInfo: routeInfo,
+        codUsur: codUsur,
       );
-
       if (response['success'] == true) {
-        // 3. Se vinculado com sucesso, iniciar a rota
-        final routeResponse = await _apiService.startRoute(
-          vehicleId: response['vehicle_id'],
-          driverId: response['driver_id'],
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) =>
+                    HodometroScreen(routeInfo: routeInfo, codUsur: codUsur),
+          ),
         );
-
-        if (routeResponse['success'] == true) {
-          // Navegar para tela de rota iniciada com sucesso
-          Navigator.pushReplacementNamed(
-            context,
-            '/route_started',
-            arguments: VehicleData.fromJson(response['vehicle_data']),
-          );
-        } else {
-          setState(() {
-            _errorMessage = routeResponse['message'] ?? 'Erro ao iniciar rota';
-          });
-        }
       } else {
         setState(() {
-          _errorMessage = response['message'] ?? 'Erro ao vincular veículo';
+          _errorMessage = response['message'] ?? 'Erro ao iniciar rota';
         });
       }
     } catch (e) {
@@ -85,13 +75,14 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scanner QR Code'),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 12.0),
-            child: Icon(Icons.code),
-          ),
-        ],
+        title: const Text('Vincular Veículo'),
+        // actions: const [
+        //   Padding(
+        //     padding: EdgeInsets.only(right: 12.0),
+        //     child: Icon(Icons.code),
+        //   ),
+        // ],
+        backgroundColor: Color(0xFF0261A3),
       ),
       body: Stack(
         children: [
@@ -100,7 +91,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
               width: screenSize.width * 0.9,
               height: screenSize.height * 0.85,
               decoration: BoxDecoration(
-                color: Colors.grey[850],
+                color: Color.fromRGBO(66, 66, 66, 1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
@@ -113,7 +104,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       vertical: 15.0,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Color.fromARGB(43, 43, 43, 1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
@@ -136,9 +127,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             if (barcodes.isNotEmpty &&
                                 barcodes.first.rawValue != null) {
                               final code = barcodes.first.rawValue!;
-                              print('QR Code Detectado: $code');
                               setState(() => _isScanCompleted = true);
-                              _linkDriverToVehicle(code);
+                              _linkMotorista(code);
                             }
                           }
                         },

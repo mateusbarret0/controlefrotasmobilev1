@@ -47,7 +47,6 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print(widget.userInfo);
     final bool isSupervisor = widget.userInfo['data']['id_tipo_usuario'] == 1;
 
     return Scaffold(
@@ -217,7 +216,6 @@ class _ViagemCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ... (Title Row, Veículo, Saída, Chegada, Km - unchanged) ...
           Row(
             children: [
               Text(

@@ -1,7 +1,7 @@
 import 'package:controlefrotasmobilev1/src/consultarViagem.dart';
 import 'package:controlefrotasmobilev1/src/login.dart';
 import 'package:flutter/material.dart';
-import 'scanner_screen.dart';
+import 'vincularVeiculo.dart';
 import '../services/api.dart';
 
 class Menu extends StatefulWidget {
@@ -93,7 +93,6 @@ class _MenuState extends State<Menu> {
   Future<void> _atualizarStatusTermo(String status) async {
     final id = userInfo['data']['id'];
     if (id == null) {
-      print("Erro: ID do usuário não encontrado nos dados `userInfo`.");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -117,10 +116,6 @@ class _MenuState extends State<Menu> {
       return;
     }
 
-    print(
-      "Tentando atualizar termo para status: '$status' para o usuário ID: $id",
-    );
-
     try {
       final api = ApiService();
       final result = await api.atualizarTermo(id, status);
@@ -128,8 +123,6 @@ class _MenuState extends State<Menu> {
       if (!mounted) return;
 
       if (result['success'] == true) {
-        print("API confirmou atualização do termo para '$status' (ID: $id).");
-
         if (status == 'S') {
           setState(() {
             userInfo['data']['termo'] = 's';
@@ -167,7 +160,6 @@ class _MenuState extends State<Menu> {
           _navegarParaLogin();
         }
       } else {
-        print("Falha ao atualizar termo para '$status': ${result['message']}");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -185,7 +177,6 @@ class _MenuState extends State<Menu> {
         _navegarParaLogin();
       }
     } catch (e) {
-      print("Erro de conexão ao tentar atualizar termo para '$status': $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -326,7 +317,7 @@ class _MenuState extends State<Menu> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const ScannerScreen(),
+                      builder: (context) => ScannerScreen(userInfo: userInfo),
                     ),
                   );
                 },
