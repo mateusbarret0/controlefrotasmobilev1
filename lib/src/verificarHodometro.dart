@@ -582,9 +582,10 @@ Se for um hodômetro, você deve tentar extrair a quilometragem exibida. Com bas
         );
       },
     );
+
     if (mounted) setState(() => _isMileageModalOpen = false);
 
-    await _initializeCamera(_selectedCameraIndex);
+    bool precisaReativarCamera = true;
 
     if (result != null && result['success'] == true) {
       if (mounted) {
@@ -602,12 +603,15 @@ Se for um hodômetro, você deve tentar extrair a quilometragem exibida. Com bas
       final position = await _getLocation();
       if (position != null) {
         if (mounted) {
+          precisaReativarCamera = false;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder:
                   (context) => IniciarViagem(
                     latitude: position.latitude,
                     longitude: position.longitude,
+                    codUsur: widget.codUsur,
+                    routeInfo: widget.routeInfo,
                   ),
             ),
           );
@@ -621,6 +625,7 @@ Se for um hodômetro, você deve tentar extrair a quilometragem exibida. Com bas
             ),
           );
         }
+        precisaReativarCamera = true;
       }
     } else if (result != null && result['success'] == false) {
       final msg =
@@ -633,6 +638,11 @@ Se for um hodômetro, você deve tentar extrair a quilometragem exibida. Com bas
           ),
         );
       }
+      precisaReativarCamera = true;
+    }
+
+    if (precisaReativarCamera) {
+      await _initializeCamera(_selectedCameraIndex);
     }
   }
 

@@ -157,4 +157,33 @@ class ApiService {
     final response = await http.post(url, headers: headers, body: body);
     return jsonDecode(response.body);
   }
+
+  Future<Map<String, dynamic>> insertPartida({
+    required double latitude,
+    required double longitude,
+    required int codUsur,
+    required routeInfo,
+  }) async {
+    final headers = await _getAuthHeaders();
+    final url = Uri.parse('$baseUrl/rota/insertPartida');
+    final body = jsonEncode({
+      'latitude': latitude,
+      'longitude': longitude,
+      'codUsur': codUsur,
+      'routeInfo': routeInfo,
+    });
+    final response = await http.post(url, headers: headers, body: body);
+    return jsonDecode(response.body);
+  }
+
+  Future<Map<String, dynamic>> getRoute({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final headers = await _getAuthHeaders();
+    final url = Uri.parse('$baseUrl/rota/getRoute');
+    final body = jsonEncode({'latitude': latitude, 'longitude': longitude});
+    final response = await http.post(url, headers: headers, body: body);
+    return jsonDecode(response.body);
+  }
 }
