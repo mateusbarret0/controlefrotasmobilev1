@@ -602,6 +602,7 @@ Se for um hodômetro, você deve tentar extrair a quilometragem exibida. Com bas
 
       final position = await _getLocation();
       if (position != null) {
+        if (!mounted) return;
         if (mounted) {
           precisaReativarCamera = false;
           Navigator.of(context).pushReplacement(
@@ -657,7 +658,6 @@ Se for um hodômetro, você deve tentar extrair a quilometragem exibida. Com bas
     });
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(

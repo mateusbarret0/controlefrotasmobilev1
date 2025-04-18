@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/api.dart'; // ajuste o caminho conforme necessário
+import '../services/api.dart';
 
 class IniciarViagem extends StatefulWidget {
   final double latitude;
@@ -24,10 +24,21 @@ class _IniciarViagemState extends State<IniciarViagem> {
   String status = 'Carregando...';
 
   @override
-  void initState() async {
+  void initState() {
     super.initState();
-    await _insertPartida();
-    await _getRoute();
+    _inicializarViagem();
+  }
+
+  Future<void> _inicializarViagem() async {
+    try {
+      await _insertPartida();
+      await _getRoute();
+    } catch (e, s) {
+      setState(() {
+        status = 'Erro inesperado: $e';
+        print(status);
+      });
+    }
   }
 
   Future<void> _insertPartida() async {
@@ -39,10 +50,12 @@ class _IniciarViagemState extends State<IniciarViagem> {
     );
 
     if (response['success'] == true) {
+      if (!mounted) return;
       setState(() {
         status = 'Viagem iniciada com sucesso!';
       });
     } else {
+      if (!mounted) return;
       setState(() {
         status = 'Erro ao iniciar viagem: ${response['message']}';
       });
@@ -50,16 +63,18 @@ class _IniciarViagemState extends State<IniciarViagem> {
   }
 
   Future<void> _getRoute() async {
-    final response = await _apiService.getRoute(
-      latitude: widget.latitude,
-      longitude: widget.longitude,
+    final response = await _apiService.getRotaMobile(
+      codUsur: widget.codUsur,
+      routeInfo: widget.routeInfo,
     );
 
     if (response['success'] == true) {
+      if (!mounted) return;
       setState(() {
         status = 'Viagem iniciada com sucesso!';
       });
     } else {
+      if (!mounted) return;
       setState(() {
         status = 'Erro ao iniciar viagem: ${response['message']}';
       });

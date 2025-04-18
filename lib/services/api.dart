@@ -176,14 +176,26 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  Future<Map<String, dynamic>> getRoute({
-    required double latitude,
-    required double longitude,
+  Future<Map<String, dynamic>> getRotaMobile({
+    required int codUsur,
+    required routeInfo,
   }) async {
     final headers = await _getAuthHeaders();
-    final url = Uri.parse('$baseUrl/rota/getRoute');
-    final body = jsonEncode({'latitude': latitude, 'longitude': longitude});
+    final url = Uri.parse('$baseUrl/rota/getRotaMobile');
+    final body = jsonEncode({'codUsur': codUsur, 'routeInfo': routeInfo});
     final response = await http.post(url, headers: headers, body: body);
-    return jsonDecode(response.body);
+
+    // Corrija o print: use interpolação!
+    print('getRoutesMobile: ${response.body}');
+
+    final decoded = jsonDecode(response.body);
+
+    if (decoded is List && decoded.isNotEmpty) {
+      return decoded[0] as Map<String, dynamic>; // usa o primeiro se for só um
+    }
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+    throw Exception('Resposta inesperada da API');
   }
 }
