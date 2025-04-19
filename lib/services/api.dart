@@ -180,22 +180,39 @@ class ApiService {
     required int codUsur,
     required routeInfo,
   }) async {
-    final headers = await _getAuthHeaders();
-    final url = Uri.parse('$baseUrl/rota/getRotaMobile');
-    final body = jsonEncode({'codUsur': codUsur, 'routeInfo': routeInfo});
-    final response = await http.post(url, headers: headers, body: body);
+    try {
+      final headers = await _getAuthHeaders();
+      final url = Uri.parse('$baseUrl/rota/getRotaMobile');
+      final body = jsonEncode({'codUsur': codUsur, 'routeInfo': routeInfo});
+      final response = await http.post(url, headers: headers, body: body);
 
-    // Corrija o print: use interpolação!
-    print('getRoutesMobile: ${response.body}');
+      print('Resposta da API: ${response.body}');
 
-    final decoded = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final decodedBody = json.decode(response.body);
+        print('Resposta da API: $decodedBody');
 
-    if (decoded is List && decoded.isNotEmpty) {
-      return decoded[0] as Map<String, dynamic>; // usa o primeiro se for só um
+        if (decodedBody['success'] == true) {
+          return {
+            'success': true,
+            'data': decodedBody['rota'] ?? {},
+            'message': decodedBody['message'] ?? '',
+          };
+        } else {
+          return {
+            'success': false,
+            'message': decodedBody['message'] ?? 'Resposta sem sucesso da API',
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Erro da API: ${response.statusCode} - ${response.body}',
+        };
+      }
+    } catch (e) {
+      print('Erro DENTRO de ApiService.getRotaMobile: $e');
+      return {'success': false, 'message': 'Erro na comunicação: $e'};
     }
-    if (decoded is Map<String, dynamic>) {
-      return decoded;
-    }
-    throw Exception('Resposta inesperada da API');
   }
 }
