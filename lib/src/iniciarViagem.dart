@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/api.dart';
+import 'gps.dart';
 
 class IniciarViagem extends StatefulWidget {
   final double latitude;
@@ -62,8 +63,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
       setState(() {
         status = 'Erro inesperado na inicialização: $e';
         _isLoadingRoute = false;
-        print(status);
-        print(s);
       });
     }
   }
@@ -120,8 +119,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
       setState(() {
         status = 'Erro ao processar rota: $e';
         _isLoadingRoute = false;
-        print(status);
-        print(s);
       });
     }
   }
@@ -197,7 +194,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
       );
       polylinePoints.add(endPoint);
 
-      print('polylinePoints: $polylinePoints');
       if (polylinePoints.length < 2) {
         setState(() {
           status = "Rota não possui pontos suficientes para traçar.";
@@ -222,13 +218,16 @@ class _IniciarViagemState extends State<IniciarViagem> {
         status = "Erro ao exibir rota no mapa.";
         _isLoadingRoute = false;
       });
-      print("Erro ao criar elementos do mapa: $e");
-      print(s);
     }
   }
 
   Future<void> _moveCameraToBounds(List<LatLng> points) async {
     if (points.isEmpty || _mapController == null) return;
+
+    if (!_controllerCompleter.isCompleted) {
+      print("Google Map controller is not ready yet.");
+      return;
+    }
 
     LatLngBounds bounds;
     if (points.length == 1) {
@@ -275,8 +274,32 @@ class _IniciarViagemState extends State<IniciarViagem> {
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: () {
-              // ação do botão
+            onPressed: () async {
+              if (_routeData != null) {
+                DateTime now = DateTime.now();
+                String formattedDate = now.toIso8601String();
+
+                final response = await ApiService().startRoute(
+                  cod_rota: _routeData!['cod_rota'],
+                );
+
+                if (response['success']) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder:
+                          (context) => TelaRoteiroGPS(routeData: _routeData!),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Erro ao iniciar a rota: ${response['message']}',
+                      ),
+                    ),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0261A3),
@@ -296,7 +319,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // Card 2 - Informações do veículo
               if (_routeData != null && _routeData!['veiculo'] != null)
                 Container(
                   width: double.infinity,
@@ -321,7 +343,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Primeira coluna
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -338,8 +359,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
                               ],
                             ),
                           ),
-                          // const SizedBox(width: 16), // Espaço entre as colunas
-                          // Segunda coluna
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,7 +381,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
                   ),
                 ),
 
-              // Card 3 - Informações da viagem
               if (_routeData != null)
                 Container(
                   width: double.infinity,
@@ -412,7 +430,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
                   ),
                 ),
 
-              // Mapa
               Container(
                 height: 320,
                 width: double.infinity,
@@ -446,8 +463,10 @@ class _IniciarViagemState extends State<IniciarViagem> {
                             markers: _markers,
                             polylines: _polylines,
                             onMapCreated: (GoogleMapController controller) {
-                              _mapController = controller;
-                              _controllerCompleter.complete(controller);
+                              if (!_controllerCompleter.isCompleted) {
+                                _controllerCompleter.complete(controller);
+                                _mapController = controller;
+                              }
                             },
                             myLocationEnabled: !kIsWeb,
                             myLocationButtonEnabled: !kIsWeb,

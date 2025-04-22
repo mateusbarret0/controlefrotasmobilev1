@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class ApiService {
   final String baseUrl = "http://localhost:8000/api";
-
+  final httpClient = http.Client();
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
@@ -111,27 +112,27 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> startRoute({
-    required String vehicleId,
-    required String driverId,
-  }) async {
-    try {
-      final headers = await _getAuthHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/routes/start'),
-        headers: headers,
-        body: jsonEncode({
-          'vehicle_id': vehicleId,
-          'driver_id': driverId,
-          'start_time': DateTime.now().toIso8601String(),
-        }),
-      );
+  // Future<Map<String, dynamic>> startRoute({
+  //   required String vehicleId,
+  //   required String driverId,
+  // }) async {
+  //   try {
+  //     final headers = await _getAuthHeaders();
+  //     final response = await http.post(
+  //       Uri.parse('$baseUrl/routes/start'),
+  //       headers: headers,
+  //       body: jsonEncode({
+  //         'vehicle_id': vehicleId,
+  //         'driver_id': driverId,
+  //         'start_time': DateTime.now().toIso8601String(),
+  //       }),
+  //     );
 
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Erro de conexão: $e'};
-    }
-  }
+  //     return jsonDecode(response.body);
+  //   } catch (e) {
+  //     return {'success': false, 'message': 'Erro de conexão: $e'};
+  //   }
+  // }
 
   Future<Map<String, dynamic>> atualizarTermo(int id, String status) async {
     try {
@@ -201,11 +202,8 @@ class ApiService {
       final body = jsonEncode({'codUsur': codUsur, 'routeInfo': routeInfo});
       final response = await http.post(url, headers: headers, body: body);
 
-      print('Resposta da API: ${response.body}');
-
       if (response.statusCode == 200) {
         final decodedBody = json.decode(response.body);
-        print('Resposta da API: $decodedBody');
 
         if (decodedBody['success'] == true) {
           return {
@@ -226,8 +224,111 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Erro DENTRO de ApiService.getRotaMobile: $e');
       return {'success': false, 'message': 'Erro na comunicação: $e'};
+    }
+  }
+
+  Future<LatLng?> snapToRoads(LatLng point) async {
+    final url = Uri.https('roads.googleapis.com', '/v1/snapToRoads', {
+      'path': '${point.latitude},${point.longitude}',
+      'interpolate': 'true',
+      'key': 'AIzaSyDBwpZs8ef-S4luuIvphLWNSSs5XCga_kc',
+    });
+
+    try {
+      final resp = await httpClient.get(url);
+      if (resp.statusCode != 200) {
+        print('⚠ Roads API error: ${resp.statusCode} – ${resp.body}');
+        return null;
+      }
+
+      final body = json.decode(resp.body) as Map<String, dynamic>;
+      final pts = body['snappedPoints'] as List<dynamic>?;
+      if (pts == null || pts.isEmpty) return null;
+
+      final loc = pts.first['location'] as Map<String, dynamic>;
+      final lat = loc['latitude'] as double;
+      final lng = loc['longitude'] as double;
+      return LatLng(lat, lng);
+    } catch (e, st) {
+      print('❌ snapToRoads exception: $e\n$st');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>> getDirections({
+    required Map<String, dynamic> start,
+    required Map<String, dynamic> end,
+    List<Map<String, dynamic>>? stops,
+  }) async {
+    final uri = Uri.parse('http://localhost:8000/api/directions');
+    final body = {
+      'start': {'latitude': start['latitude'], 'longitude': start['longitude']},
+      'end': {'latitude': end['latitude'], 'longitude': end['longitude']},
+      'stops': stops ?? [],
+    };
+    final resp = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+    final json = jsonDecode(resp.body);
+    return {
+      'success':
+          json['status'] == 'OK' ||
+          json['status'] == 200 ||
+          json['status'] == true,
+      'data': json,
+    };
+  }
+
+  Future<Map<String, dynamic>> startRoute({required int cod_rota}) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/rota/horaPartida'),
+        headers: headers,
+        body: jsonEncode({
+          'cod_rota': cod_rota,
+          'hora_partida': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> endRoute({required int cod_rota}) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/rota/horaChegada'),
+        headers: headers,
+        body: jsonEncode({
+          'cod_rota': cod_rota,
+          'hora_chegada': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> getHorario({required int cod_rota}) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/rota/duracao?cod_rota=$cod_rota'),
+        headers: headers,
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
 =======

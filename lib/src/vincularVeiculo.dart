@@ -76,12 +76,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Vincular Veículo'),
-        // actions: const [
-        //   Padding(
-        //     padding: EdgeInsets.only(right: 12.0),
-        //     child: Icon(Icons.code),
-        //   ),
-        // ],
         backgroundColor: Color(0xFF0261A3),
       ),
       body: Stack(
