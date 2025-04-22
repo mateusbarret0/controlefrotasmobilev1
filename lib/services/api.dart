@@ -97,27 +97,27 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> startRoute({
-    required String vehicleId,
-    required String driverId,
-  }) async {
-    try {
-      final headers = await _getAuthHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/routes/start'),
-        headers: headers,
-        body: jsonEncode({
-          'vehicle_id': vehicleId,
-          'driver_id': driverId,
-          'start_time': DateTime.now().toIso8601String(),
-        }),
-      );
+  // Future<Map<String, dynamic>> startRoute({
+  //   required String vehicleId,
+  //   required String driverId,
+  // }) async {
+  //   try {
+  //     final headers = await _getAuthHeaders();
+  //     final response = await http.post(
+  //       Uri.parse('$baseUrl/routes/start'),
+  //       headers: headers,
+  //       body: jsonEncode({
+  //         'vehicle_id': vehicleId,
+  //         'driver_id': driverId,
+  //         'start_time': DateTime.now().toIso8601String(),
+  //       }),
+  //     );
 
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Erro de conexão: $e'};
-    }
-  }
+  //     return jsonDecode(response.body);
+  //   } catch (e) {
+  //     return {'success': false, 'message': 'Erro de conexão: $e'};
+  //   }
+  // }
 
   Future<Map<String, dynamic>> atualizarTermo(int id, String status) async {
     try {
@@ -246,8 +246,6 @@ class ApiService {
     required Map<String, dynamic> end,
     List<Map<String, dynamic>>? stops,
   }) async {
-    print('start: $start, end: $end, stops: $stops');
-
     final uri = Uri.parse('http://localhost:8000/api/directions');
     final body = {
       'start': {'latitude': start['latitude'], 'longitude': start['longitude']},
@@ -267,5 +265,55 @@ class ApiService {
           json['status'] == true,
       'data': json,
     };
+  }
+
+  Future<Map<String, dynamic>> startRoute({required int cod_rota}) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/rota/horaPartida'),
+        headers: headers,
+        body: jsonEncode({
+          'cod_rota': cod_rota,
+          'hora_partida': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> endRoute({required int cod_rota}) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/rota/horaChegada'),
+        headers: headers,
+        body: jsonEncode({
+          'cod_rota': cod_rota,
+          'hora_chegada': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> getHorario({required int cod_rota}) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/rota/duracao?cod_rota=$cod_rota'),
+        headers: headers,
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
   }
 }

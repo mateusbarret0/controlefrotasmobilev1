@@ -264,9 +264,8 @@ class _ViagemCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Spacer(), // Pushes buttons to the right
+              const Spacer(),
               if (isSupervisor) ...[
-                // Buttons on the right
                 IconButton(
                   iconSize: 30,
                   icon: const Icon(
@@ -275,27 +274,21 @@ class _ViagemCard extends StatelessWidget {
                   ),
                   onPressed: onAprovar,
                   tooltip: 'Aprovar',
-                  // Add padding/constraints if icons feel too close to edge
-                  constraints: const BoxConstraints(), // Remove default padding
-                  padding: EdgeInsets.zero, // Remove default padding
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
                 ),
-                const SizedBox(
-                  width: 4,
-                ), // Optional small space between buttons
+                const SizedBox(width: 4),
                 IconButton(
                   iconSize: 30,
                   icon: const Icon(Icons.cancel_outlined, color: Colors.red),
                   onPressed: onReprovar,
                   tooltip: 'Reprovar',
-                  // Add padding/constraints if icons feel too close to edge
-                  constraints: const BoxConstraints(), // Remove default padding
-                  padding: EdgeInsets.zero, // Remove default padding
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
                 ),
               ],
             ],
           ),
-          // --- MODIFICATION END ---
-          // Remove the old SizedBox(height: 6) and the old button Row
         ],
       ),
     );

@@ -591,10 +591,16 @@ Se for um hodômetro, você deve tentar extrair a quilometragem exibida. Com bas
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: Colors.green[800],
+            backgroundColor: Colors.green,
             content: const Text(
-              'Registro salvo com sucesso.',
+              'Verificação de quilometragem realizada com sucesso.',
               style: TextStyle(color: Colors.white),
+            ),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
         );
@@ -743,36 +749,6 @@ Se for um hodômetro, você deve tentar extrair a quilometragem exibida. Com bas
                 _buildStatusAndControls(),
 
                 const SizedBox(height: 18),
-                // if (_isAnalyzing)
-                //   Padding(
-                //     padding: const EdgeInsets.symmetric(vertical: 16.0),
-                //     child: Column(
-                //       children: [
-                //         // Loading central maior e cor de destaque clara
-                //         const SizedBox(
-                //           height: 38,
-                //           width: 38,
-                //           child: CircularProgressIndicator(
-                //             valueColor: AlwaysStoppedAnimation<Color>(
-                //               Colors.cyanAccent,
-                //             ),
-                //             backgroundColor: Colors.white12,
-                //             strokeWidth: 4,
-                //           ),
-                //         ),
-                //         const SizedBox(height: 13),
-                //         const Text(
-                //           "Analisando imagem...",
-                //           textAlign: TextAlign.center,
-                //           style: TextStyle(
-                //             color: Colors.white,
-                //             fontSize: 17,
-                //             fontWeight: FontWeight.w300,
-                //           ),
-                //         ),
-                //       ],
-                //     ),
-                //   ),
                 if (_errorMessage != null && !_isAnalyzing)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -788,7 +764,7 @@ Se for um hodômetro, você deve tentar extrair a quilometragem exibida. Com bas
                   ),
                 const SizedBox(height: 17),
                 Text(
-                  'ALFAID v2.8.15 - BETA (Hodômetro v2)',
+                  'ALFAID v2.8.15 - BETA',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.25),
                     fontSize: 12,

@@ -2,9 +2,28 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import '../../services/api.dart'; // seu wrapper da Directions
+import '../../services/api.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-import 'resumoRota.dart'; // tela de resumo da rota
+import 'resumoRota.dart';
+
+class RouteStep {
+  final LatLng start, end;
+  final List<LatLng> polyline;
+  final String instruction;
+  final int distance;
+
+  RouteStep({
+    required this.start,
+    required this.end,
+    required this.polyline,
+    required this.instruction,
+    required this.distance,
+  });
+  @override
+  String toString() {
+    return 'RouteStep(start: $start, end: $end, distance: ${distance.toStringAsFixed(2)} km, instruction: $instruction)';
+  }
+}
 
 class TelaRoteiroGPS extends StatefulWidget {
   final Map<String, dynamic> routeData;
@@ -18,12 +37,10 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
   final Completer<GoogleMapController> _ctrl = Completer();
   StreamSubscription<Position>? _positionSub;
 
-  // rota e passos
   Polyline? _routePolyline;
   List<RouteStep> _steps = [];
   int _currentStepIndex = 0;
 
-  // marcadores: partida, paradas, chegada e motorista
   final List<Marker> _markers = [];
   Marker? _driverMarker;
 
@@ -43,16 +60,10 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
     if (perm == LocationPermission.always ||
         perm == LocationPermission.whileInUse) {
       await _loadRouteAndStartGPS();
-    } else {
-      // trate caso sem permissão
-    }
+    } else {}
   }
 
   Future<void> _loadRouteAndStartGPS() async {
-    // 1) pega posição inicial
-    // final pos = await Geolocator.getCurrentPosition(
-    //   locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-    // );
     final pos = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
@@ -61,14 +72,12 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
       zoom: 15,
     );
 
-    // 2) adiciona marcador do motorista (atualizável)
     _driverMarker = Marker(
       markerId: const MarkerId('driver'),
       position: LatLng(pos.latitude, pos.longitude),
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
     );
 
-    // 3) marcadores de partida, paradas e chegada
     final sd = widget.routeData['partida'];
     final ed = widget.routeData['chegada'];
     final stops = List<Map<String, dynamic>>.from(
@@ -117,8 +126,6 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
       final stepsJson = legs.expand((leg) => leg['steps'] as List).toList();
       for (var s in stepsJson) {
         final poly = s['polyline']['points'];
-        // print('Polyline recebida: "$poly"');
-        // print('Tamanho da string: ${poly.length}');
       }
 
       _steps =
@@ -136,26 +143,19 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
             );
           }).toList();
 
-      // junta todos os polylines em um só
       final all = <LatLng>[];
       for (var st in _steps) {
         all.addAll(
           st.polyline.where((p) => (p.latitude >= -85 && p.latitude <= 85)),
         );
       }
-      // print('QUANTIDADE DE PONTOS (all): ${all.length}');
-      // print('PRIMEIROS 10: ${all.take(10).toList()}');
-      // print('ÚLTIMOS 10: ${all.skip(all.length - 10).toList()}');
       for (var p in all) {
         if (p.latitude < -90 ||
             p.latitude > 90 ||
             p.longitude < -180 ||
-            p.longitude > 180) {
-          // print('PONTO INVÁLIDO: $p');
-        }
+            p.longitude > 180) {}
       }
 
-      // POLYLINE E CENTRALIZAÇÃO:
       _routePolyline = Polyline(
         polylineId: const PolylineId('route'),
         points: all,
@@ -164,7 +164,6 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
         geodesic: true,
       );
 
-      // CENTRALIZAÇÃO INICIAL:
       if (all.isNotEmpty) {
         double minLat = all.first.latitude, maxLat = all.first.latitude;
         double minLng = all.first.longitude, maxLng = all.first.longitude;
@@ -183,7 +182,6 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
 
     setState(() {});
 
-    // 5) inicia monitoramento GPS em tempo real
     _positionSub = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
@@ -195,29 +193,36 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
   void _onPositionUpdate(Position pos) async {
     final latlng = LatLng(pos.latitude, pos.longitude);
 
-    // atualiza marcador do motorista
-    _driverMarker = _driverMarker!.copyWith(positionParam: latlng);
-    _markers.removeWhere((m) => m.markerId.value == 'driver');
-    _markers.insert(0, _driverMarker!);
-
-    // calcula em qual passo ele está
-    for (var i = 0; i < _steps.length; i++) {
-      final distToEnd = Geolocator.distanceBetween(
-        latlng.latitude,
-        latlng.longitude,
-        _steps[i].end.latitude,
-        _steps[i].end.longitude,
-      );
-      if (distToEnd > 20) {
-        _currentStepIndex = i;
-        break;
-      }
+    if (!_ctrl.isCompleted) {
+      print("Google Map controller is not ready yet.");
+      return;
     }
 
-    // centraliza câmera opcional:
-    final c = await _ctrl.future;
-    c.animateCamera(CameraUpdate.newLatLng(latlng));
-    setState(() {});
+    try {
+      final GoogleMapController c = await _ctrl.future;
+      _driverMarker = _driverMarker!.copyWith(positionParam: latlng);
+      _markers.removeWhere((m) => m.markerId.value == 'driver');
+      _markers.insert(0, _driverMarker!);
+
+      for (var i = 0; i < _steps.length; i++) {
+        final distToEnd = Geolocator.distanceBetween(
+          latlng.latitude,
+          latlng.longitude,
+          _steps[i].end.latitude,
+          _steps[i].end.longitude,
+        );
+
+        if (distToEnd > 20) {
+          _currentStepIndex = i;
+          break;
+        }
+      }
+
+      c.animateCamera(CameraUpdate.newLatLng(latlng));
+      setState(() {});
+    } catch (e) {
+      print("Error updating position: $e");
+    }
   }
 
   LatLngBounds _calculateBounds(List<LatLng> points) {
@@ -258,60 +263,46 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
             .map((s) => s.distance)
             .fold(0, (a, b) => a + b) /
         1000.0;
-    if (_routePolyline != null) {
-      // print('Polyline id: ${_routePolyline!.polylineId.value}');
-      // print('Quantidade de pontos: ${_routePolyline!.points.length}');
-      // print(
-      //   'Primeiro ponto: ${_routePolyline!.points.isNotEmpty ? _routePolyline!.points.first : 'nenhum'}',
-      // );
-      // print('Cor: ${_routePolyline!.color}');
-    }
+    if (_routePolyline != null) {}
     return Scaffold(
-      appBar: AppBar(title: Text('Rota #${widget.routeData['cod_rota']}')),
+      appBar: AppBar(
+        title: Text('Navegação'),
+        backgroundColor: Color(0xFF0261A3),
+      ),
       body: Stack(
         children: [
           GoogleMap(
             initialCameraPosition: _initialCamera!,
-            onMapCreated: (c) async {
-              _ctrl.complete(c);
-
-              // Printando a posição inicial da câmera
-              print('Initial Camera Position: $_initialCamera');
+            onMapCreated: (GoogleMapController controller) async {
+              if (!_ctrl.isCompleted) {
+                _ctrl.complete(controller);
+              }
 
               if (_routePolyline != null && _routePolyline!.points.isNotEmpty) {
                 LatLngBounds bounds = _calculateBounds(_routePolyline!.points);
-                await c.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
-
-                // Printando detalhes da polyline
-                print('Polyline ID: ${_routePolyline!.polylineId}');
-                print('Polyline Points: ${_routePolyline!.points}');
-                print('Polyline Color: ${_routePolyline!.color}');
-                print('markerId: ${_markers}');
+                await controller.animateCamera(
+                  CameraUpdate.newLatLngBounds(bounds, 50),
+                );
               }
             },
             myLocationButtonEnabled: false,
             trafficEnabled: true,
-
-            // Configurando os marcadores
             markers: Set.from(_markers),
-
-            // Configurando as polylines
             polylines:
                 _routePolyline != null ? {_routePolyline!} : <Polyline>{},
           ),
 
-          // Printando os marcadores fora da configuração do GoogleMap
           if (nextStep != null)
             Positioned(
+              top: 16,
               left: 16,
               right: 16,
-              bottom: 24,
               child: Card(
                 elevation: 8,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withOpacity(0.95),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -350,18 +341,26 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
               ),
             ),
 
-          // Botão para finalizar a rota
           Positioned(
             bottom: 16,
             left: 16,
             right: 16,
             child: ElevatedButton(
               onPressed: _finalizarRota,
-              child: Text('Finalizar Rota'),
               style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[400],
+                elevation: 6,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 padding: EdgeInsets.symmetric(vertical: 16),
-                textStyle: TextStyle(fontSize: 16),
+                textStyle: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
+              child: Text('Finalizar Rota'),
             ),
           ),
         ],
@@ -369,20 +368,31 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
     );
   }
 
-  void _finalizarRota() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (context) => ResumoRotaScreen(
-              routeData: widget.routeData,
-              steps: _steps.where((step) => step != null).toList(),
-            ),
-      ),
+  void _finalizarRota() async {
+    final response = await ApiService().endRoute(
+      cod_rota: widget.routeData['cod_rota'],
     );
+
+    if (response['success']) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => ResumoRotaScreen(
+                routeData: widget.routeData,
+                steps: _steps.where((step) => step != null).toList(),
+              ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao finalizar a rota: ${response['message']}'),
+        ),
+      );
+    }
   }
 
-  // decodifica polyline Google
   List<LatLng> _decodePolyline(String encoded) {
     PolylinePoints polylinePoints = PolylinePoints();
     List<PointLatLng> result = polylinePoints.decodePolyline(encoded);
@@ -403,19 +413,4 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
   String _stripHtml(String html) {
     return html.replaceAll(RegExp(r'<[^>]*>'), '');
   }
-}
-
-class RouteStep {
-  final LatLng start, end;
-  final List<LatLng> polyline;
-  final String instruction;
-  final int distance;
-
-  RouteStep({
-    required this.start,
-    required this.end,
-    required this.polyline,
-    required this.instruction,
-    required this.distance,
-  });
 }

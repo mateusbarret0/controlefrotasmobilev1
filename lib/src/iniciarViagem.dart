@@ -224,6 +224,11 @@ class _IniciarViagemState extends State<IniciarViagem> {
   Future<void> _moveCameraToBounds(List<LatLng> points) async {
     if (points.isEmpty || _mapController == null) return;
 
+    if (!_controllerCompleter.isCompleted) {
+      print("Google Map controller is not ready yet.");
+      return;
+    }
+
     LatLngBounds bounds;
     if (points.length == 1) {
       await _mapController!.animateCamera(
@@ -269,14 +274,31 @@ class _IniciarViagemState extends State<IniciarViagem> {
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               if (_routeData != null) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder:
-                        (context) => TelaRoteiroGPS(routeData: _routeData!),
-                  ),
+                DateTime now = DateTime.now();
+                String formattedDate = now.toIso8601String();
+
+                final response = await ApiService().startRoute(
+                  cod_rota: _routeData!['cod_rota'],
                 );
+
+                if (response['success']) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder:
+                          (context) => TelaRoteiroGPS(routeData: _routeData!),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Erro ao iniciar a rota: ${response['message']}',
+                      ),
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(
@@ -297,7 +319,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // Card 2 - Informações do veículo
               if (_routeData != null && _routeData!['veiculo'] != null)
                 Container(
                   width: double.infinity,
@@ -322,7 +343,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Primeira coluna
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,8 +359,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
                               ],
                             ),
                           ),
-                          // const SizedBox(width: 16), // Espaço entre as colunas
-                          // Segunda coluna
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,7 +381,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
                   ),
                 ),
 
-              // Card 3 - Informações da viagem
               if (_routeData != null)
                 Container(
                   width: double.infinity,
@@ -413,7 +430,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
                   ),
                 ),
 
-              // Mapa
               Container(
                 height: 320,
                 width: double.infinity,
@@ -447,8 +463,10 @@ class _IniciarViagemState extends State<IniciarViagem> {
                             markers: _markers,
                             polylines: _polylines,
                             onMapCreated: (GoogleMapController controller) {
-                              _mapController = controller;
-                              _controllerCompleter.complete(controller);
+                              if (!_controllerCompleter.isCompleted) {
+                                _controllerCompleter.complete(controller);
+                                _mapController = controller;
+                              }
                             },
                             myLocationEnabled: !kIsWeb,
                             myLocationButtonEnabled: !kIsWeb,
