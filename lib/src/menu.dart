@@ -1,8 +1,14 @@
 import 'package:controlefrotasmobilev1/src/consultarViagem.dart';
 import 'package:controlefrotasmobilev1/src/login.dart';
 import 'package:flutter/material.dart';
+<<<<<<< Updated upstream
 import 'vincularVeiculo.dart';
 import '../services/api.dart';
+=======
+import 'package:shared_preferences/shared_preferences.dart';
+import 'scanner_screen.dart';
+import '../services/api.dart'; // Certifique-se de que o caminho está correto
+>>>>>>> Stashed changes
 
 class Menu extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -14,12 +20,17 @@ class Menu extends StatefulWidget {
 }
 
 class _MenuState extends State<Menu> {
+<<<<<<< Updated upstream
   late Map<String, dynamic> userInfo;
   bool _isLoading = false;
+=======
+  bool aceitouTermo = false;
+>>>>>>> Stashed changes
 
   @override
   void initState() {
     super.initState();
+<<<<<<< Updated upstream
     userInfo =
         widget.userData['data'] is Map<String, dynamic>
             ? Map<String, dynamic>.from(widget.userData['data'])
@@ -41,6 +52,17 @@ class _MenuState extends State<Menu> {
   Future<void> _mostrarTermoDeResponsabilidade() async {
     if (!mounted) return;
 
+=======
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userInfo = widget.userData['data'] ?? {};
+      if (userInfo['termo'] != 's') {
+        _mostrarTermoDeResponsabilidade();
+      }
+    });
+  }
+
+  Future<void> _mostrarTermoDeResponsabilidade() async {
+>>>>>>> Stashed changes
     final aceitou = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -49,16 +71,25 @@ class _MenuState extends State<Menu> {
           backgroundColor: const Color.fromRGBO(66, 66, 66, 1),
           title: const Text(
             'Termo de Responsabilidade',
+<<<<<<< Updated upstream
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           content: const SingleChildScrollView(
             child: Text(
               'Ao continuar, você declara estar ciente de que é responsável pelo uso adequado dos veículos da frota e pelo registro fiel das rotas realizadas durante sua operação, seguindo as normas e procedimentos estabelecidos pela empresa.',
+=======
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const SingleChildScrollView(
+            child: Text(
+              'Ao continuar, você declara estar ciente de que é responsável pelo uso dos veículos e pelas rotas realizadas durante a operação.',
+>>>>>>> Stashed changes
               style: TextStyle(color: Colors.white70),
             ),
           ),
           actions: [
             TextButton(
+<<<<<<< Updated upstream
               onPressed:
                   _isLoading ? null : () => Navigator.of(context).pop(true),
               child: const Text(
@@ -73,12 +104,28 @@ class _MenuState extends State<Menu> {
                 'NÃO ACEITO',
                 style: TextStyle(color: Colors.redAccent),
               ),
+=======
+              child: const Text('Aceito', style: TextStyle(color: Colors.blue)),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+            TextButton(
+              child: const Text(
+                'Não aceito',
+                style: TextStyle(color: Colors.red),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+>>>>>>> Stashed changes
             ),
           ],
         );
       },
     );
 
+<<<<<<< Updated upstream
     if (!mounted) return;
 
     final String statusTermo = (aceitou == true) ? 'S' : 'N';
@@ -218,6 +265,43 @@ class _MenuState extends State<Menu> {
         context,
         MaterialPageRoute(builder: (context) => const Login()),
       );
+=======
+    if (aceitou == true) {
+      setState(() {
+        aceitouTermo = true;
+      });
+      await _enviarAceiteTermo();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _enviarAceiteTermo() async {
+    final userInfo = widget.userData['data'];
+    print("userInfo: $userInfo");
+    if (userInfo != null && userInfo['id'] != null) {
+      final api = ApiService();
+      final result = await api.aceitarTermo(userInfo['id']);
+
+      if (result['success'] == true) {
+        print("Aceite registrado com sucesso.");
+        setState(() {
+          widget.userData['data']['termo'] = 's';
+        });
+      } else {
+        print("Falha ao registrar aceite: ${result['message']}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Erro ao aceitar termo: ${result['message']}"),
+          ),
+        );
+      }
+    } else {
+      print("Usuário inválido ou ID ausente");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Erro: Usuário inválido.")));
+>>>>>>> Stashed changes
     }
   }
 
