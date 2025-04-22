@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/api.dart';
+import 'gps.dart';
 
 class IniciarViagem extends StatefulWidget {
   final double latitude;
@@ -62,8 +63,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
       setState(() {
         status = 'Erro inesperado na inicialização: $e';
         _isLoadingRoute = false;
-        print(status);
-        print(s);
       });
     }
   }
@@ -120,8 +119,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
       setState(() {
         status = 'Erro ao processar rota: $e';
         _isLoadingRoute = false;
-        print(status);
-        print(s);
       });
     }
   }
@@ -197,7 +194,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
       );
       polylinePoints.add(endPoint);
 
-      print('polylinePoints: $polylinePoints');
       if (polylinePoints.length < 2) {
         setState(() {
           status = "Rota não possui pontos suficientes para traçar.";
@@ -222,8 +218,6 @@ class _IniciarViagemState extends State<IniciarViagem> {
         status = "Erro ao exibir rota no mapa.";
         _isLoadingRoute = false;
       });
-      print("Erro ao criar elementos do mapa: $e");
-      print(s);
     }
   }
 
@@ -276,7 +270,14 @@ class _IniciarViagemState extends State<IniciarViagem> {
           height: 50,
           child: ElevatedButton(
             onPressed: () {
-              // ação do botão
+              if (_routeData != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder:
+                        (context) => TelaRoteiroGPS(routeData: _routeData!),
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0261A3),

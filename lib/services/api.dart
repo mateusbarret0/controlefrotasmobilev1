@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class ApiService {
   final String baseUrl = "http://localhost:8000/api";
-
+  final httpClient = http.Client();
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
@@ -186,11 +187,8 @@ class ApiService {
       final body = jsonEncode({'codUsur': codUsur, 'routeInfo': routeInfo});
       final response = await http.post(url, headers: headers, body: body);
 
-      print('Resposta da API: ${response.body}');
-
       if (response.statusCode == 200) {
         final decodedBody = json.decode(response.body);
-        print('Resposta da API: $decodedBody');
 
         if (decodedBody['success'] == true) {
           return {
@@ -211,8 +209,63 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Erro DENTRO de ApiService.getRotaMobile: $e');
       return {'success': false, 'message': 'Erro na comunicação: $e'};
     }
+  }
+
+  Future<LatLng?> snapToRoads(LatLng point) async {
+    final url = Uri.https('roads.googleapis.com', '/v1/snapToRoads', {
+      'path': '${point.latitude},${point.longitude}',
+      'interpolate': 'true',
+      'key': 'AIzaSyDBwpZs8ef-S4luuIvphLWNSSs5XCga_kc',
+    });
+
+    try {
+      final resp = await httpClient.get(url);
+      if (resp.statusCode != 200) {
+        print('⚠ Roads API error: ${resp.statusCode} – ${resp.body}');
+        return null;
+      }
+
+      final body = json.decode(resp.body) as Map<String, dynamic>;
+      final pts = body['snappedPoints'] as List<dynamic>?;
+      if (pts == null || pts.isEmpty) return null;
+
+      final loc = pts.first['location'] as Map<String, dynamic>;
+      final lat = loc['latitude'] as double;
+      final lng = loc['longitude'] as double;
+      return LatLng(lat, lng);
+    } catch (e, st) {
+      print('❌ snapToRoads exception: $e\n$st');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>> getDirections({
+    required Map<String, dynamic> start,
+    required Map<String, dynamic> end,
+    List<Map<String, dynamic>>? stops,
+  }) async {
+    print('start: $start, end: $end, stops: $stops');
+
+    final uri = Uri.parse('http://localhost:8000/api/directions');
+    final body = {
+      'start': {'latitude': start['latitude'], 'longitude': start['longitude']},
+      'end': {'latitude': end['latitude'], 'longitude': end['longitude']},
+      'stops': stops ?? [],
+    };
+    final resp = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+    final json = jsonDecode(resp.body);
+    return {
+      'success':
+          json['status'] == 'OK' ||
+          json['status'] == 200 ||
+          json['status'] == true,
+      'data': json,
+    };
   }
 }

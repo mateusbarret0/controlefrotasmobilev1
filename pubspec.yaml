@@ -18,6 +18,12 @@ dependencies:
   geolocator: ^11.0.0
   google_maps_flutter: ^2.5.0
   google_maps_flutter_web: ^0.5.4+2
+  flutter_polyline_points: ^2.1.0
+  location: ^4.4.0
+  flutter_tts: ^3.5.0
+  provider: ^6.0.5
+  dio: ^5.0.0
+  permission_handler: ^10.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -26,3 +32,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/logoAlfa.png
+    - assets/map_style_dark.json
