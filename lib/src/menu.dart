@@ -229,6 +229,8 @@ class _MenuState extends State<Menu> {
     final String descricao =
         userInfo['data']['descricao']?.toString() ?? 'Descrição Indisponível';
 
+    final bool isMotorista = userInfo['data']['id_tipo_usuario'] == 2;
+
     return Scaffold(
       backgroundColor: const Color.fromRGBO(43, 43, 43, 1),
       body: SafeArea(
@@ -310,19 +312,19 @@ class _MenuState extends State<Menu> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              _buildMenuButton(
-                title: 'Iniciar Viagem',
-                subtitle: 'Escaneie o QR Code do veículo',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ScannerScreen(userInfo: userInfo),
-                    ),
-                  );
-                },
-              ),
+              if (isMotorista)
+                _buildMenuButton(
+                  title: 'Iniciar Viagem',
+                  subtitle: 'Escaneie o QR Code do veículo',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ScannerScreen(userInfo: userInfo),
+                      ),
+                    );
+                  },
+                ),
               const SizedBox(height: 12),
 
               _buildMenuButton(

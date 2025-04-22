@@ -369,28 +369,85 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
   }
 
   void _finalizarRota() async {
-    final response = await ApiService().endRoute(
-      cod_rota: widget.routeData['cod_rota'],
-    );
+    final DateTime dataHoraFim = DateTime.now();
 
-    if (response['success']) {
-      Navigator.push(
+    final codRota = widget.routeData['cod_rota'];
+    final partida = widget.routeData['partida'];
+    final chegada = widget.routeData['chegada'];
+
+    if (codRota == null || partida == null || chegada == null) {
+      ScaffoldMessenger.of(
         context,
-        MaterialPageRoute(
-          builder:
-              (context) => ResumoRotaScreen(
-                routeData: widget.routeData,
-                steps: _steps.where((step) => step != null).toList(),
-              ),
-        ),
-      );
-    } else {
+      ).showSnackBar(SnackBar(content: Text('Dados da rota incompletos.')));
+      return;
+    }
+
+    final partidaLat = partida['latitude'];
+    final partidaLng = partida['longitude'];
+    final chegadaLat = chegada['latitude'];
+    final chegadaLng = chegada['longitude'];
+
+    if (partidaLat == null ||
+        partidaLng == null ||
+        chegadaLat == null ||
+        chegadaLng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro ao finalizar a rota: ${response['message']}'),
+          content: Text('Dados de latitude ou longitude estão faltando.'),
         ),
       );
+      return;
     }
+
+    final double kmPercorrido =
+        _steps.map((s) => s.distance).fold(0, (a, b) => a + b) / 1000.0;
+    final int numParadas = widget.routeData['paradas']?.length ?? 0;
+
+    final responseRouteInfo = await ApiService().insertRouteInfo(
+      cod_rota: codRota,
+      partidaLat: partidaLat,
+      partidaLng: partidaLng,
+      chegadaLat: chegadaLat,
+      chegadaLng: chegadaLng,
+      kmPercorrido: kmPercorrido,
+      numParadas: numParadas,
+      dataHoraFim: dataHoraFim,
+    );
+
+    if (responseRouteInfo == null || responseRouteInfo['success'] != true) {
+      String errorMessage =
+          responseRouteInfo?['message'] ??
+          'Erro desconhecido ao finalizar a rota';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao finalizar a rota: $errorMessage')),
+      );
+      return;
+    }
+
+    final responseSteps = await ApiService().insertRouteSteps(
+      cod_rota: codRota,
+      steps: _steps,
+    );
+
+    if (responseSteps == null || responseSteps['success'] != true) {
+      String errorMessage =
+          responseSteps?['message'] ?? 'Erro desconhecido ao salvar os steps';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao salvar os steps da rota: $errorMessage'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) =>
+                ResumoRotaScreen(routeData: widget.routeData, steps: _steps),
+      ),
+    );
   }
 
   List<LatLng> _decodePolyline(String encoded) {

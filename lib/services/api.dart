@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../src/gps.dart';
 
 class ApiService {
   final String baseUrl = "http://localhost:8000/api";
@@ -96,28 +97,6 @@ class ApiService {
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
-
-  // Future<Map<String, dynamic>> startRoute({
-  //   required String vehicleId,
-  //   required String driverId,
-  // }) async {
-  //   try {
-  //     final headers = await _getAuthHeaders();
-  //     final response = await http.post(
-  //       Uri.parse('$baseUrl/routes/start'),
-  //       headers: headers,
-  //       body: jsonEncode({
-  //         'vehicle_id': vehicleId,
-  //         'driver_id': driverId,
-  //         'start_time': DateTime.now().toIso8601String(),
-  //       }),
-  //     );
-
-  //     return jsonDecode(response.body);
-  //   } catch (e) {
-  //     return {'success': false, 'message': 'Erro de conexão: $e'};
-  //   }
-  // }
 
   Future<Map<String, dynamic>> atualizarTermo(int id, String status) async {
     try {
@@ -312,6 +291,123 @@ class ApiService {
       );
 
       return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> insertRouteInfo({
+    required int cod_rota,
+    required double partidaLat,
+    required double partidaLng,
+    required double chegadaLat,
+    required double chegadaLng,
+    required double kmPercorrido,
+    required int numParadas,
+    required DateTime dataHoraFim,
+  }) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/rota/insertRouteInfo'),
+        headers: headers,
+        body: jsonEncode({
+          'cod_rota': cod_rota,
+          'partida_lat': partidaLat,
+          'partida_lng': partidaLng,
+          'chegada_lat': chegadaLat,
+          'chegada_lng': chegadaLng,
+          'km_percorrido': kmPercorrido,
+          'num_paradas': numParadas,
+          'data_hora_fim': dataHoraFim.toIso8601String(),
+        }),
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> insertRouteSteps({
+    required int cod_rota,
+    required List<RouteStep> steps,
+  }) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final stepsData =
+          steps
+              .map(
+                (step) => {
+                  'step_index': steps.indexOf(step),
+                  'start_lat': step.start.latitude,
+                  'start_lng': step.start.longitude,
+                  'end_lat': step.end.latitude,
+                  'end_lng': step.end.longitude,
+                  'instruction': step.instruction,
+                  'distance': step.distance / 1000.0,
+                },
+              )
+              .toList();
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/rota/insertRouteSteps'),
+        headers: headers,
+        body: jsonEncode({'cod_rota': cod_rota, 'steps': stepsData}),
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchViagens(int codMotorista) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/fetch/viagens?codMotorista=$codMotorista'),
+      );
+      print("RESPOSTA DE FETCH VIAGENS: ${response.body}");
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data['success']) {
+          return List<Map<String, dynamic>>.from(data['viagens']);
+        } else {
+          throw Exception('Erro ao buscar viagens: ${data['message']}');
+        }
+      } else {
+        throw Exception('Erro ao buscar viagens: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Erro de conexão: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> atualizarStatusRota(
+    int codRota,
+    String status, {
+    String? motivo,
+  }) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/rota/atualizarStatus'),
+        headers: headers,
+        body: jsonEncode({
+          'codRota': codRota,
+          'status': status,
+          'motivo': motivo,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {
+          'success': false,
+          'message': 'Erro no servidor: ${response.statusCode}',
+        };
+      }
     } catch (e) {
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }

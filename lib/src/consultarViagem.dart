@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../services/api.dart';
 
 class ConsultaViagensScreen extends StatefulWidget {
   final Map<String, dynamic> userInfo;
@@ -9,45 +11,149 @@ class ConsultaViagensScreen extends StatefulWidget {
 }
 
 class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
-  final List<Map<String, dynamic>> viagens = [
-    {
-      'numero': '01',
-      'veiculo': 'Mercedes-Benz 413 Van',
-      'saida': '23/08/2024 - 12:30',
-      'chegada': '23/08/2024 - 13:30',
-      'km': '27km',
-      'paradas': '2',
-      'status': 'pendente',
-    },
-    {
-      'numero': '02',
-      'veiculo': 'Fiat Ducato Minibus',
-      'saida': '15/09/2024 - 15:00',
-      'chegada': '15/09/2024 - 17:00',
-      'km': '53km',
-      'paradas': '5',
-      'status': 'pendente',
-    },
-    {
-      'numero': '03',
-      'veiculo': 'Ford Transit - 2021',
-      'saida': '02/02/2024 - 18:30',
-      'chegada': '02/02/2024 - 20:00',
-      'km': '84km',
-      'paradas': '4',
-      'status': 'pendente',
-    },
-  ];
+  List<Map<String, dynamic>> viagens = [];
+  List<Map<String, dynamic>> viagensFiltradas = [];
+  bool isLoading = true;
+  late int codMotorista;
+  String filtroGeral = '';
 
-  void atualizarStatus(int index, String novoStatus) {
+  @override
+  void initState() {
+    super.initState();
+    codMotorista = widget.userInfo['data']['cod_usur'];
+    _fetchViagens();
+  }
+
+  Future<void> _fetchViagens() async {
+    try {
+      final fetchedViagens = await ApiService().fetchViagens(codMotorista);
+      setState(() {
+        viagens = fetchedViagens;
+        viagensFiltradas = fetchedViagens;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao carregar viagens: $e')));
+    }
+  }
+
+  void _filtrarViagens() {
     setState(() {
-      viagens[index]['status'] = novoStatus;
+      viagensFiltradas =
+          viagens.where((viagem) {
+            final codRota = viagem['cod_rota'].toString();
+            final nomeVeiculo = '${viagem['modelo']} - ${viagem['placa']}';
+            final dataPartida = DateFormat(
+              'dd/MM/yyyy',
+            ).format(DateTime.parse(viagem['data_hora_partida']));
+
+            final filtroLower = filtroGeral.toLowerCase();
+
+            return codRota.contains(filtroLower) ||
+                nomeVeiculo.toLowerCase().contains(filtroLower) ||
+                dataPartida.contains(filtroLower);
+          }).toList();
     });
+  }
+
+  void atualizarStatus(int index, String novoStatus, {String? motivo}) async {
+    final codRota = viagensFiltradas[index]['cod_rota'];
+
+    try {
+      final response = await ApiService().atualizarStatusRota(
+        codRota,
+        novoStatus,
+        motivo: motivo,
+      );
+
+      if (!mounted) return;
+      if (response['success']) {
+        setState(() {
+          viagensFiltradas[index]['status_rota'] = novoStatus;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              "Status atualizado com sucesso!",
+              style: TextStyle(fontSize: 14),
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao atualizar status: ${response['message']}'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro de conexão: $e')));
+    }
+  }
+
+  Future<void> mostrarModalReprovacao(int index) async {
+    String motivo = '';
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            'Motivo da Reprovação',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: const Color.fromRGBO(66, 66, 66, 1),
+          content: TextField(
+            onChanged: (value) => motivo = value,
+            decoration: InputDecoration(
+              hintText: "Digite o motivo",
+              hintStyle: TextStyle(color: Colors.white),
+            ),
+            style: TextStyle(color: Colors.white),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                atualizarStatus(index, 'reprovada', motivo: motivo);
+              },
+              child: Text(
+                'Confirmar',
+                style: TextStyle(color: Colors.blueAccent),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isSupervisor = widget.userInfo['data']['id_tipo_usuario'] == 1;
+    print("viagens: $viagensFiltradas");
 
     return Scaffold(
       backgroundColor: const Color(0xFF2B2B2B),
@@ -58,95 +164,13 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF424242),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                      tooltip: 'Voltar',
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.userInfo['data']['nome']?.toString() ??
-                                'Nome não disponível',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            widget.userInfo['data']['descricao']?.toString() ??
-                                'Descrição não disponível',
-                            style: const TextStyle(
-                              color: Colors.white60,
-                              fontSize: 13,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.settings, color: Colors.blue),
-                  ],
-                ),
-              ),
+              _buildHeader(),
               const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: const Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        style: TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          hintText: 'Pesquisar viagem',
-                          hintStyle: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                    Icon(Icons.search, color: Colors.white),
-                  ],
-                ),
-              ),
+              _buildSearchBar(),
               const SizedBox(height: 12),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: viagens.length,
-                  itemBuilder: (context, index) {
-                    final viagem = viagens[index];
-                    return _ViagemCard(
-                      numero: viagem['numero'],
-                      veiculo: viagem['veiculo'],
-                      saida: viagem['saida'],
-                      chegada: viagem['chegada'],
-                      km: viagem['km'],
-                      paradas: viagem['paradas'],
-                      status: viagem['status'],
-                      isSupervisor: isSupervisor,
-                      onAprovar: () => atualizarStatus(index, 'aprovada'),
-                      onReprovar: () => atualizarStatus(index, 'reprovada'),
-                    );
-                  },
-                ),
-              ),
+              isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : Expanded(child: _buildViagensList(isSupervisor)),
               const Center(
                 child: Text(
                   'ALFAID v2.8.15 - BETA',
@@ -158,6 +182,110 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF424242),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+            tooltip: 'Voltar',
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.userInfo['data']['nome']?.toString() ??
+                      'Nome não disponível',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.userInfo['data']['descricao']?.toString() ??
+                      'Descrição não disponível',
+                  style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.settings, color: Colors.blue),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.blue,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                hintText: 'Pesquisar viagem:',
+                hintStyle: TextStyle(color: Colors.white),
+              ),
+              onChanged: (value) {
+                filtroGeral = value;
+                _filtrarViagens();
+              },
+            ),
+          ),
+          const Icon(Icons.search, color: Colors.white),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildViagensList(bool isSupervisor) {
+    return ListView.builder(
+      itemCount: viagensFiltradas.length,
+      itemBuilder: (context, index) {
+        final viagem = viagensFiltradas[index];
+
+        final DateFormat formatter = DateFormat('dd/MM/yyyy - HH:mm:ss');
+        final String formattedSaida = formatter.format(
+          DateTime.parse(viagem['data_hora_partida']),
+        );
+        final String formattedChegada = formatter.format(
+          DateTime.parse(viagem['data_hora_chegada']),
+        );
+
+        return _ViagemCard(
+          numero: viagem['cod_rota'].toString(),
+          veiculo: '${viagem['modelo']} - ${viagem['placa']}',
+          saida: formattedSaida,
+          chegada: formattedChegada,
+          km: viagem['km_percorrido'].toString(),
+          paradas: viagem['num_paradas'].toString(),
+          status: viagem['status_rota'] ?? 'Pendente',
+          isSupervisor: isSupervisor,
+          onAprovar: () => atualizarStatus(index, 'aprovada'),
+          onReprovar: () => mostrarModalReprovacao(index),
+        );
+      },
     );
   }
 }

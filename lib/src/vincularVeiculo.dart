@@ -7,6 +7,7 @@ import 'dart:convert';
 class ScannerScreen extends StatefulWidget {
   final Map<String, dynamic> userInfo;
   const ScannerScreen({super.key, required this.userInfo});
+
   @override
   State<ScannerScreen> createState() => _ScannerScreenState();
 }
@@ -121,6 +122,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                             if (barcodes.isNotEmpty &&
                                 barcodes.first.rawValue != null) {
                               final code = barcodes.first.rawValue!;
+
+                              print('Conteúdo do QR Code: $code');
+
                               setState(() => _isScanCompleted = true);
                               _linkMotorista(code);
                             }
