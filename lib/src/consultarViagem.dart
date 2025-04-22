@@ -137,7 +137,7 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                atualizarStatus(index, 'reprovada', motivo: motivo);
+                atualizarStatus(index, 'Reprovado', motivo: motivo);
               },
               child: Text(
                 'Confirmar',
@@ -282,7 +282,7 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
           paradas: viagem['num_paradas'].toString(),
           status: viagem['status_rota'] ?? 'Pendente',
           isSupervisor: isSupervisor,
-          onAprovar: () => atualizarStatus(index, 'aprovada'),
+          onAprovar: () => atualizarStatus(index, 'Aprovado'),
           onReprovar: () => mostrarModalReprovacao(index),
         );
       },
@@ -321,16 +321,16 @@ class _ViagemCard extends StatelessWidget {
     String statusTexto;
 
     switch (status) {
-      case 'aprovada':
+      case 'Aprovado':
         statusColor = Colors.green;
-        statusTexto = 'Aprovada';
+        statusTexto = 'Aprovado';
         break;
-      case 'reprovada':
+      case 'Reprovado':
         statusColor = Colors.red;
-        statusTexto = 'Reprovada';
+        statusTexto = 'Reprovado';
         break;
       default:
-        statusColor = Colors.grey;
+        statusColor = const Color.fromARGB(255, 255, 200, 0);
         statusTexto = 'Pendente';
     }
 
