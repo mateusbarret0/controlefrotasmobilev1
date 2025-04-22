@@ -11,7 +11,6 @@ class ApiService {
     return prefs.getString('token');
   }
 
-<<<<<<< Updated upstream
   Future<Map<String, String>> _getAuthHeaders() async {
     final token = await getToken();
     return {
@@ -20,8 +19,6 @@ class ApiService {
     };
   }
 
-=======
->>>>>>> Stashed changes
   Future<Map<String, dynamic>> login(Map<String, dynamic> data) async {
     try {
       final response = await http.post(
@@ -59,23 +56,12 @@ class ApiService {
 
   Future<Map<String, dynamic>> getUsur(Map<String, dynamic> userData) async {
     try {
-<<<<<<< Updated upstream
       final headers = await _getAuthHeaders();
-=======
-      final token = await getToken();
->>>>>>> Stashed changes
       final response = await http.get(
         Uri.parse(
           '$baseUrl/get/usur?usuario=${userData['usuario']}&senha=${userData['senha']}',
         ),
-<<<<<<< Updated upstream
         headers: headers,
-=======
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
->>>>>>> Stashed changes
       );
 
       if (response.statusCode == 200 && response.body.isNotEmpty) {
@@ -93,7 +79,6 @@ class ApiService {
     }
   }
 
-<<<<<<< Updated upstream
   Future<Map<String, dynamic>> linkMotorista({
     required List<dynamic> routeInfo,
     required int codUsur,
@@ -331,32 +316,4 @@ class ApiService {
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
-=======
-  Future<Map<String, dynamic>> aceitarTermo(int userId) async {
-    try {
-      final token = await getToken();
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/updatetermo'),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode({'user_id': userId}),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return {'success': true, 'message': 'Termo aceito com sucesso'};
-      } else {
-        return {
-          'success': false,
-          'message': 'Erro ao aceitar termo: ${response.statusCode}',
-        };
-      }
-    } catch (e) {
-      print("Erro ao enviar aceite do termo: $e");
-      return {'success': false, 'message': 'Erro de conexão: $e'};
-    }
-  }
->>>>>>> Stashed changes
 }
