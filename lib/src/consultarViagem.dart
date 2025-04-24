@@ -4,7 +4,12 @@ import '../services/api.dart';
 
 class ConsultaViagensScreen extends StatefulWidget {
   final Map<String, dynamic> userInfo;
-  const ConsultaViagensScreen({super.key, required this.userInfo});
+  final List<dynamic> steps;
+  const ConsultaViagensScreen({
+    super.key,
+    required this.userInfo,
+    this.steps = const [],
+  });
 
   @override
   State<ConsultaViagensScreen> createState() => _ConsultaViagensScreenState();
@@ -15,18 +20,24 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
   List<Map<String, dynamic>> viagensFiltradas = [];
   bool isLoading = true;
   late int codMotorista;
+  late int idTipoUsuario;
   String filtroGeral = '';
 
   @override
   void initState() {
     super.initState();
     codMotorista = widget.userInfo['data']['cod_usur'];
+    idTipoUsuario = widget.userInfo['data']['id_tipo_usuario'];
     _fetchViagens();
   }
 
   Future<void> _fetchViagens() async {
+    print("STEPS CONSULTARVIAGEM: ${widget.steps}");
     try {
-      final fetchedViagens = await ApiService().fetchViagens(codMotorista);
+      final fetchedViagens = await ApiService().fetchViagens(
+        codMotorista,
+        idTipoUsuario,
+      );
       setState(() {
         viagens = fetchedViagens;
         viagensFiltradas = fetchedViagens;

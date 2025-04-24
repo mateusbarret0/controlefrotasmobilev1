@@ -5,6 +5,8 @@ import 'package:geolocator/geolocator.dart';
 import '../../services/api.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'resumoRota.dart';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
 
 class RouteStep {
   final LatLng start, end;
@@ -19,15 +21,17 @@ class RouteStep {
     required this.instruction,
     required this.distance,
   });
-  @override
-  String toString() {
-    return 'RouteStep(start: $start, end: $end, distance: ${distance.toStringAsFixed(2)} km, instruction: $instruction)';
-  }
 }
 
 class TelaRoteiroGPS extends StatefulWidget {
   final Map<String, dynamic> routeData;
-  const TelaRoteiroGPS({Key? key, required this.routeData}) : super(key: key);
+  final Map<String, dynamic> userData;
+
+  const TelaRoteiroGPS({
+    Key? key,
+    required this.routeData,
+    required this.userData,
+  }) : super(key: key);
 
   @override
   _TelaRoteiroGPSState createState() => _TelaRoteiroGPSState();
@@ -52,6 +56,15 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
     _checkPermissionAndLoad();
   }
 
+  @override
+  void dispose() {
+    _positionSub?.cancel();
+    if (!_ctrl.isCompleted) {
+      _ctrl.complete();
+    }
+    super.dispose();
+  }
+
   Future<void> _checkPermissionAndLoad() async {
     var perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {
@@ -60,7 +73,23 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
     if (perm == LocationPermission.always ||
         perm == LocationPermission.whileInUse) {
       await _loadRouteAndStartGPS();
-    } else {}
+    }
+  }
+
+  Future<BitmapDescriptor> _createDriverIcon() async {
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+    const double circleRadius = 10;
+
+    Paint paint = Paint()..color = Colors.blue;
+    canvas.drawCircle(Offset(circleRadius, circleRadius), circleRadius, paint);
+    final ui.Image img = await recorder.endRecording().toImage(
+      circleRadius.toInt() * 2,
+      circleRadius.toInt() * 2,
+    );
+    final ByteData? data = await img.toByteData(format: ui.ImageByteFormat.png);
+
+    return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
   }
 
   Future<void> _loadRouteAndStartGPS() async {
@@ -72,10 +101,12 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
       zoom: 15,
     );
 
+    final driverIcon = await _createDriverIcon();
+
     _driverMarker = Marker(
       markerId: const MarkerId('driver'),
       position: LatLng(pos.latitude, pos.longitude),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+      icon: driverIcon,
     );
 
     final sd = widget.routeData['partida'];
@@ -136,7 +167,6 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
                 s['start_location']['lng'],
               ),
               end: LatLng(s['end_location']['lat'], s['end_location']['lng']),
-
               polyline: _decodePolyline(s['polyline']['points']),
               instruction: s['html_instructions'],
               distance: s['distance']['value'],
@@ -241,12 +271,6 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
   }
 
   @override
-  void dispose() {
-    _positionSub?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     if (_initialCamera == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -263,7 +287,6 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
             .map((s) => s.distance)
             .fold(0, (a, b) => a + b) /
         1000.0;
-    if (_routePolyline != null) {}
     return Scaffold(
       appBar: AppBar(
         title: Text('Navegação'),
@@ -291,7 +314,6 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
             polylines:
                 _routePolyline != null ? {_routePolyline!} : <Polyline>{},
           ),
-
           if (nextStep != null)
             Positioned(
               top: 16,
@@ -340,7 +362,6 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
                 ),
               ),
             ),
-
           Positioned(
             bottom: 16,
             left: 16,
@@ -440,12 +461,15 @@ class _TelaRoteiroGPSState extends State<TelaRoteiroGPS> {
       return;
     }
 
-    Navigator.push(
+    Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder:
-            (context) =>
-                ResumoRotaScreen(routeData: widget.routeData, steps: _steps),
+            (context) => ResumoRotaScreen(
+              routeData: widget.routeData,
+              steps: _steps,
+              userData: widget.userData,
+            ),
       ),
     );
   }

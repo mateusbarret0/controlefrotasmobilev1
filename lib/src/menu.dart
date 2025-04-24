@@ -320,7 +320,11 @@ class _MenuState extends State<Menu> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ScannerScreen(userInfo: userInfo),
+                        builder:
+                            (context) => ScannerScreen(
+                              userInfo: userInfo,
+                              userData: widget.userData,
+                            ),
                       ),
                     );
                   },

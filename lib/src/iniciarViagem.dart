@@ -4,12 +4,14 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/api.dart';
 import 'gps.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class IniciarViagem extends StatefulWidget {
   final double latitude;
   final double longitude;
   final int codUsur;
   final dynamic routeInfo;
+  final Map<String, dynamic> userData;
 
   const IniciarViagem({
     Key? key,
@@ -17,6 +19,7 @@ class IniciarViagem extends StatefulWidget {
     required this.longitude,
     required this.codUsur,
     required this.routeInfo,
+    required this.userData,
   }) : super(key: key);
 
   @override
@@ -33,12 +36,32 @@ class _IniciarViagemState extends State<IniciarViagem> {
   Set<Polyline> _polylines = {};
   LatLng? _initialCameraLocation;
   Map<String, dynamic>? _routeData;
+  List<LatLng> _polylinePoints = [];
 
   @override
   void initState() {
     super.initState();
-    _initialCameraLocation = LatLng(widget.latitude, widget.longitude);
-    _inicializarViagem();
+    _solicitarPermissoes().then((granted) {
+      if (granted) {
+        _initialCameraLocation = LatLng(widget.latitude, widget.longitude);
+        _inicializarViagem();
+      } else {
+        setState(() {
+          status = 'Permissão de localização negada.';
+          _isLoadingRoute = false;
+        });
+      }
+    });
+  }
+
+  Future<bool> _solicitarPermissoes() async {
+    var status = await Permission.location.status;
+
+    if (!status.isGranted) {
+      status = await Permission.location.request();
+    }
+
+    return status.isGranted;
   }
 
   Future<void> _inicializarViagem() async {
@@ -148,7 +171,7 @@ class _IniciarViagemState extends State<IniciarViagem> {
         double.parse(chegada['longitude'].toString()),
       );
 
-      List<LatLng> polylinePoints = [startPoint];
+      _polylinePoints = [startPoint];
 
       _markers.add(
         Marker(
@@ -180,7 +203,7 @@ class _IniciarViagemState extends State<IniciarViagem> {
               ),
             ),
           );
-          polylinePoints.add(paradaPoint);
+          _polylinePoints.add(paradaPoint);
         }
       }
 
@@ -192,9 +215,9 @@ class _IniciarViagemState extends State<IniciarViagem> {
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
         ),
       );
-      polylinePoints.add(endPoint);
+      _polylinePoints.add(endPoint);
 
-      if (polylinePoints.length < 2) {
+      if (_polylinePoints.length < 2) {
         setState(() {
           status = "Rota não possui pontos suficientes para traçar.";
           _isLoadingRoute = false;
@@ -205,12 +228,13 @@ class _IniciarViagemState extends State<IniciarViagem> {
       _polylines.add(
         Polyline(
           polylineId: const PolylineId('rota'),
-          points: polylinePoints,
+          points: _polylinePoints,
           color: Colors.blue,
           width: 5,
         ),
       );
-      _moveCameraToBounds(polylinePoints);
+
+      _moveCameraToBounds(_polylinePoints);
 
       setState(() {});
     } catch (e, s) {
@@ -237,18 +261,22 @@ class _IniciarViagemState extends State<IniciarViagem> {
       return;
     }
 
-    final lats = points.map((e) => e.latitude);
-    final lons = points.map((e) => e.longitude);
+    final double southWestLatitude = points
+        .map((point) => point.latitude)
+        .reduce((a, b) => a < b ? a : b);
+    final double southWestLongitude = points
+        .map((point) => point.longitude)
+        .reduce((a, b) => a < b ? a : b);
+    final double northEastLatitude = points
+        .map((point) => point.latitude)
+        .reduce((a, b) => a > b ? a : b);
+    final double northEastLongitude = points
+        .map((point) => point.longitude)
+        .reduce((a, b) => a > b ? a : b);
 
     bounds = LatLngBounds(
-      southwest: LatLng(
-        lats.reduce((a, b) => a < b ? a : b),
-        lons.reduce((a, b) => a < b ? a : b),
-      ),
-      northeast: LatLng(
-        lats.reduce((a, b) => a > b ? a : b),
-        lons.reduce((a, b) => a > b ? a : b),
-      ),
+      southwest: LatLng(southWestLatitude, southWestLongitude),
+      northeast: LatLng(northEastLatitude, northEastLongitude),
     );
 
     await _mapController!.animateCamera(
@@ -287,7 +315,10 @@ class _IniciarViagemState extends State<IniciarViagem> {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder:
-                          (context) => TelaRoteiroGPS(routeData: _routeData!),
+                          (context) => TelaRoteiroGPS(
+                            routeData: _routeData!,
+                            userData: widget.userData,
+                          ),
                     ),
                   );
                 } else {
@@ -466,6 +497,9 @@ class _IniciarViagemState extends State<IniciarViagem> {
                               if (!_controllerCompleter.isCompleted) {
                                 _controllerCompleter.complete(controller);
                                 _mapController = controller;
+                              }
+                              if (_polylinePoints.isNotEmpty) {
+                                _moveCameraToBounds(_polylinePoints);
                               }
                             },
                             myLocationEnabled: !kIsWeb,

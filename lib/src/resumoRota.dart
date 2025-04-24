@@ -3,15 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'gps.dart';
 import '../services/api.dart';
+import '../src/menu.dart';
 
 class ResumoRotaScreen extends StatefulWidget {
   final Map<String, dynamic> routeData;
   final List<RouteStep> steps;
+  final Map<String, dynamic> userData;
 
   const ResumoRotaScreen({
     Key? key,
     required this.routeData,
     required this.steps,
+    required this.userData,
   }) : super(key: key);
 
   @override
@@ -26,7 +29,17 @@ class _ResumoRotaScreenState extends State<ResumoRotaScreen> {
   @override
   void initState() {
     super.initState();
+    print("ResumoRotaScreen initState");
     fetchDuracaoRota(widget.routeData['cod_rota']);
+  }
+
+  @override
+  void dispose() {
+    if (!_controllerCompleter.isCompleted) {
+      _controllerCompleter.complete();
+    }
+
+    super.dispose();
   }
 
   Future<void> fetchDuracaoRota(int codRota) async {
@@ -111,9 +124,14 @@ class _ResumoRotaScreenState extends State<ResumoRotaScreen> {
                 'Voltar ao Início',
                 style: TextStyle(color: Colors.white),
               ),
-              onPressed:
-                  () =>
-                      Navigator.of(context).popUntil((route) => route.isFirst),
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => Menu(userData: widget.userData),
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: azulPrincipal,
                 padding: const EdgeInsets.symmetric(
@@ -383,7 +401,9 @@ class _ResumoRotaScreenState extends State<ResumoRotaScreen> {
           ),
         },
         onMapCreated: (GoogleMapController controller) {
-          _controllerCompleter.complete(controller);
+          if (!_controllerCompleter.isCompleted) {
+            _controllerCompleter.complete(controller);
+          }
           Future.delayed(Duration(milliseconds: 200), () {
             controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
           });

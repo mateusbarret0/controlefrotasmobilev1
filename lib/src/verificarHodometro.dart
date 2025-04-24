@@ -9,15 +9,19 @@ import 'package:image/image.dart' as img;
 import '../services/api.dart';
 import 'package:controlefrotasmobilev1/src/iniciarViagem.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HodometroScreen extends StatefulWidget {
   final dynamic routeInfo;
   final int codUsur;
 
+  final Map<String, dynamic> userData;
+
   const HodometroScreen({
     super.key,
     required this.routeInfo,
     required this.codUsur,
+    required this.userData,
   });
 
   @override
@@ -61,17 +65,47 @@ class _HodometroScreenState extends State<HodometroScreen> {
     super.dispose();
   }
 
+  Future<bool> _requestCameraPermission() async {
+    final status = await Permission.camera.request();
+    return status.isGranted;
+  }
+
   Future<void> _initializeCamera([int cameraIndex = 0]) async {
-    if (_isSwitchingCamera) return;
+    if (_isSwitchingCamera) {
+      debugPrint("InitializeCamera: Already switching, returning.");
+      return;
+    }
 
     setState(() {
       _isCameraInitialized = false;
       _isSwitchingCamera = true;
       _errorMessage = null;
+      _imageFile = null;
     });
+
+    final hasPermission = await _requestCameraPermission();
+    if (!mounted) return;
+    if (!hasPermission) {
+      setState(() {
+        _errorMessage = "Permissão de câmera negada.";
+        _isCameraInitialized = false;
+        _isSwitchingCamera = false;
+      });
+      return;
+    }
+
+    CameraController? oldController = _cameraController;
+    _cameraController = null;
+    try {
+      await oldController?.dispose();
+      debugPrint("InitializeCamera: Old controller disposed.");
+    } catch (e) {
+      debugPrint("InitializeCamera: Error disposing old controller: $e");
+    }
 
     try {
       _cameras ??= await availableCameras();
+      if (!mounted) return;
 
       if (_cameras == null || _cameras!.isEmpty) {
         setState(() {
@@ -82,40 +116,91 @@ class _HodometroScreenState extends State<HodometroScreen> {
         return;
       }
 
-      _selectedCameraIndex = cameraIndex % _cameras!.length;
+      int validCameraIndex = cameraIndex % _cameras!.length;
+      if (validCameraIndex < 0) {
+        validCameraIndex = 0;
+      }
+      _selectedCameraIndex = validCameraIndex;
       _selectedCamera = _cameras![_selectedCameraIndex];
 
-      await _cameraController?.dispose();
+      if (_selectedCamera == null) {
+        throw Exception(
+          "Falha ao obter CameraDescription válida para o índice $_selectedCameraIndex.",
+        );
+      }
 
-      _cameraController = CameraController(
-        _selectedCamera!,
-        ResolutionPreset.high,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.jpeg,
+      debugPrint(
+        "InitializeCamera: Attempting to use camera: ${_selectedCamera?.name} (Index: $_selectedCameraIndex)",
       );
 
-      await _cameraController!.initialize();
+      final CameraController newController = CameraController(
+        _selectedCamera!,
+        ResolutionPreset.medium,
+        enableAudio: false,
+      );
 
-      if (!mounted) return;
+      await newController.initialize();
+      debugPrint("InitializeCamera: New controller initialized successfully.");
+      if (!mounted) {
+        await newController.dispose();
+        debugPrint(
+          "InitializeCamera: Widget unmounted after initialize, disposing new controller.",
+        );
+        return;
+      }
       setState(() {
+        _cameraController = newController;
         _isCameraInitialized = true;
         _errorMessage = null;
         _isSwitchingCamera = false;
       });
-    } on CameraException catch (e) {
+    } on CameraException catch (e, stacktrace) {
+      debugPrint(
+        "InitializeCamera: CameraException! Code: ${e.code}, Description: ${e.description}\n$stacktrace",
+      );
+      if (!mounted) return;
       setState(() {
-        _errorMessage =
-            "Erro ao inicializar a câmera (${_selectedCamera?.name}): ${e.description}";
+        String errorMsg;
+        switch (e.code) {
+          case 'CameraAccessDenied':
+            errorMsg = "Acesso à câmera negado. Verifique as permissões.";
+            break;
+          case 'CameraAccessDeniedWithoutPrompt':
+            errorMsg =
+                "Acesso à câmera negado permanentemente. Habilite nas configurações.";
+            break;
+          case 'AudioAccessDenied':
+            errorMsg = "Acesso ao áudio negado (embora não solicitado).";
+            break;
+          case 'cameraNotFound':
+            errorMsg =
+                "Câmera selecionada (${_selectedCamera?.name ?? 'ID Desconhecido'}) não encontrada.";
+            break;
+          case 'captureTimeout':
+            errorMsg =
+                "Tempo limite excedido durante a configuração da câmera.";
+            break;
+          default:
+            errorMsg =
+                "Erro na Câmera (${_selectedCamera?.name ?? 'Desconhecida'}): ${e.description ?? e.code}";
+        }
+        _errorMessage = errorMsg;
         _isCameraInitialized = false;
         _isSwitchingCamera = false;
         _cameraController = null;
+        _selectedCamera = null;
       });
-    } catch (e) {
+    } catch (e, stacktrace) {
+      debugPrint(
+        "InitializeCamera: Unexpected error! Type: ${e.runtimeType}\nError: $e\n$stacktrace",
+      );
+      if (!mounted) return;
       setState(() {
         _errorMessage = "Erro inesperado ao configurar a câmera: $e";
         _isCameraInitialized = false;
         _isSwitchingCamera = false;
         _cameraController = null;
+        _selectedCamera = null;
       });
     }
   }
@@ -139,6 +224,10 @@ class _HodometroScreenState extends State<HodometroScreen> {
         _isTakingPicture ||
         _isAnalyzing ||
         _isSwitchingCamera) {
+      print("Condições não atendidas para tirar foto.");
+      setState(() {
+        _errorMessage = "Condições não atendidas para tirar foto.";
+      });
       return;
     }
 
@@ -149,7 +238,9 @@ class _HodometroScreenState extends State<HodometroScreen> {
     });
 
     try {
+      print("Tentando tirar foto...");
       final XFile image = await _cameraController!.takePicture();
+      print("Foto tirada com sucesso!");
 
       if (!mounted) return;
 
@@ -158,12 +249,14 @@ class _HodometroScreenState extends State<HodometroScreen> {
       });
       await _analyzeImageWithGemini();
     } on CameraException catch (e) {
+      print("Erro ao tirar a foto: ${e.description}");
       if (!mounted) return;
       setState(() {
         _errorMessage = "Erro ao tirar a foto: ${e.description}";
         _imageFile = null;
       });
     } catch (e) {
+      print("Erro inesperado ao tirar a foto: $e");
       if (!mounted) return;
       setState(() {
         _errorMessage = "Erro inesperado ao tirar a foto: $e";
@@ -619,6 +712,7 @@ Se for um hodômetro, você deve tentar extrair a quilometragem exibida. Com bas
                     longitude: position.longitude,
                     codUsur: widget.codUsur,
                     routeInfo: widget.routeInfo,
+                    userData: widget.userData,
                   ),
             ),
           );
