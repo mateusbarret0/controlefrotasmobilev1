@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api.dart';
+import '../src/viagemDetalhes.dart';
 
 class ConsultaViagensScreen extends StatefulWidget {
   final Map<String, dynamic> userInfo;
@@ -32,7 +33,7 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
   }
 
   Future<void> _fetchViagens() async {
-    print("STEPS CONSULTARVIAGEM: ${widget.steps}");
+    print("AQUI BURRO DE TETA: ${widget.userInfo}");
     try {
       final fetchedViagens = await ApiService().fetchViagens(
         codMotorista,
@@ -74,10 +75,11 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
 
   void atualizarStatus(int index, String novoStatus, {String? motivo}) async {
     final codRota = viagensFiltradas[index]['cod_rota'];
-
+    final codSuperv = widget.userInfo['data']['cod_usur'];
     try {
       final response = await ApiService().atualizarStatusRota(
         codRota,
+        codSuperv,
         novoStatus,
         motivo: motivo,
       );
@@ -271,30 +273,50 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
   }
 
   Widget _buildViagensList(bool isSupervisor) {
+    if (viagensFiltradas.isEmpty && !isLoading) {
+      return Center(
+        child: Text(
+          'Nenhuma viagem encontrada.',
+          style: TextStyle(color: Colors.white54, fontSize: 16),
+        ),
+      );
+    }
+
     return ListView.builder(
       itemCount: viagensFiltradas.length,
       itemBuilder: (context, index) {
         final viagem = viagensFiltradas[index];
 
         final DateFormat formatter = DateFormat('dd/MM/yyyy - HH:mm:ss');
-        final String formattedSaida = formatter.format(
-          DateTime.parse(viagem['data_hora_partida']),
-        );
-        final String formattedChegada = formatter.format(
-          DateTime.parse(viagem['data_hora_chegada']),
-        );
+        final String formattedSaida =
+            viagem['data_hora_partida'] != null
+                ? formatter.format(DateTime.parse(viagem['data_hora_partida']))
+                : 'N/A';
+        final String formattedChegada =
+            viagem['data_hora_chegada'] != null
+                ? formatter.format(DateTime.parse(viagem['data_hora_chegada']))
+                : 'N/A';
 
         return _ViagemCard(
-          numero: viagem['cod_rota'].toString(),
-          veiculo: '${viagem['modelo']} - ${viagem['placa']}',
+          key: ValueKey(viagem['cod_rota']),
+          numero: viagem['cod_rota']?.toString() ?? 'N/A',
+          veiculo: '${viagem['modelo'] ?? 'N/A'} - ${viagem['placa'] ?? 'N/A'}',
           saida: formattedSaida,
           chegada: formattedChegada,
-          km: viagem['km_percorrido'].toString(),
-          paradas: viagem['num_paradas'].toString(),
-          status: viagem['status_rota'] ?? 'Pendente',
+          km: viagem['km_percorrido']?.toString() ?? 'N/A',
+          paradas: viagem['num_paradas']?.toString() ?? 'N/A',
+          status: viagem['status_rota']?.toString() ?? 'Pendente',
           isSupervisor: isSupervisor,
           onAprovar: () => atualizarStatus(index, 'Aprovado'),
           onReprovar: () => mostrarModalReprovacao(index),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ViagemDetalhesScreen(viagemData: viagem),
+              ),
+            );
+          },
         );
       },
     );
@@ -302,6 +324,7 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
 }
 
 class _ViagemCard extends StatelessWidget {
+  final ValueKey key;
   final String numero;
   final String veiculo;
   final String saida;
@@ -312,8 +335,10 @@ class _ViagemCard extends StatelessWidget {
   final bool isSupervisor;
   final VoidCallback onAprovar;
   final VoidCallback onReprovar;
+  final VoidCallback onTap;
 
   const _ViagemCard({
+    required this.key,
     required this.numero,
     required this.veiculo,
     required this.saida,
@@ -324,6 +349,7 @@ class _ViagemCard extends StatelessWidget {
     required this.isSupervisor,
     required this.onAprovar,
     required this.onReprovar,
+    required this.onTap,
   });
 
   @override
@@ -345,90 +371,97 @@ class _ViagemCard extends StatelessWidget {
         statusTexto = 'Pendente';
     }
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF424242),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Viagem - $numero',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  border: Border.all(color: statusColor),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  statusTexto,
-                  style: TextStyle(
-                    color: statusColor,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF424242),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Viagem - $numero',
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Veículo: $veiculo',
-            style: const TextStyle(color: Colors.white),
-          ),
-          Text('Saída: $saida', style: const TextStyle(color: Colors.white)),
-          Text(
-            'Chegada: $chegada',
-            style: const TextStyle(color: Colors.white),
-          ),
-          Text(
-            'Km percorrido: $km',
-            style: const TextStyle(color: Colors.white),
-          ),
-          Text(
-            'Paradas realizadas: $paradas',
-            style: const TextStyle(color: Colors.white),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Spacer(),
-              if (isSupervisor) ...[
-                IconButton(
-                  iconSize: 30,
-                  icon: const Icon(
-                    Icons.check_circle_outline,
-                    color: Colors.green,
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
                   ),
-                  onPressed: onAprovar,
-                  tooltip: 'Aprovar',
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  iconSize: 30,
-                  icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                  onPressed: onReprovar,
-                  tooltip: 'Reprovar',
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    border: Border.all(color: statusColor),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    statusTexto,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Veículo: $veiculo',
+              style: const TextStyle(color: Colors.white),
+            ),
+            Text('Saída: $saida', style: const TextStyle(color: Colors.white)),
+            Text(
+              'Chegada: $chegada',
+              style: const TextStyle(color: Colors.white),
+            ),
+            Text(
+              'Km percorrido: $km',
+              style: const TextStyle(color: Colors.white),
+            ),
+            Text(
+              'Paradas realizadas: $paradas',
+              style: const TextStyle(color: Colors.white),
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Spacer(),
+                if (isSupervisor) ...[
+                  IconButton(
+                    iconSize: 30,
+                    icon: const Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.green,
+                    ),
+                    onPressed: onAprovar,
+                    tooltip: 'Aprovar',
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    iconSize: 30,
+                    icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                    onPressed: onReprovar,
+                    tooltip: 'Reprovar',
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

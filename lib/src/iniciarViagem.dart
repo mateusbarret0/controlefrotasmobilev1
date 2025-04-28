@@ -387,13 +387,7 @@ class _IniciarViagemState extends State<IniciarViagem> {
                                   'Placa: ${_routeData!['veiculo']['placa']}',
                                   style: const TextStyle(color: Colors.white),
                                 ),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+                                const SizedBox(height: 3),
                                 Text(
                                   'Ano: ${_routeData!['veiculo']['ano']}',
                                   style: const TextStyle(color: Colors.white),

@@ -6,10 +6,10 @@ import '../src/gps.dart';
 
 class ApiService {
   // final String baseUrl = "http://localhost:8000/api";
-  // final String baseUrl = "http://172.20.10.2:8000/api"; // Localhost IP Roteador
+  // final String baseUrl = "http://172.20.10.2:8000/api"; // Localhost IP Roteadorkk
   // final String baseUrl = "http://192.168.1.68:8000/api"; // Localhost IP Casa
   final String baseUrl =
-      "http://192.168.98.71:8000/api"; // Localhost IP Trabalho
+      "http://192.168.98.158:8000/api"; // Localhost IP Trabalho
 
   final httpClient = http.Client();
   Future<String?> getToken() async {
@@ -231,12 +231,14 @@ class ApiService {
     List<Map<String, dynamic>>? stops,
   }) async {
     // final uri = Uri.parse('http://localhost:8000/api/directions');
-    // final uri = Uri.parse('http://172.20.10.2:8000/api/directions'); // Localhost IP Roteador
+    // final uri = Uri.parse(
+    //   'http://172.20.10.2:8000/api/directions',
+    // ); // Localhost IP Roteador
     // final uri = Uri.parse(
     //   'http://192.168.1.68:8000/api/directions',
     // ); // Localhost IP Casa
     final uri = Uri.parse(
-      'http://192.168.98.71:8000/api/directions',
+      'http://192.168.98.158:8000/api/directions',
     ); // Localhost IP Trabalho
     final body = {
       'start': {'latitude': start['latitude'], 'longitude': start['longitude']},
@@ -272,6 +274,7 @@ class ApiService {
 
       return jsonDecode(response.body);
     } catch (e) {
+      print(e);
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -402,6 +405,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> atualizarStatusRota(
     int codRota,
+    int codSuperv,
     String status, {
     String? motivo,
   }) async {
@@ -412,9 +416,32 @@ class ApiService {
         headers: headers,
         body: jsonEncode({
           'codRota': codRota,
+          'codSuperv': codSuperv,
           'status': status,
           'motivo': motivo,
         }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {
+          'success': false,
+          'message': 'Erro no servidor: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> getStepsRota(int codRota) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/rota/getStepsRota'),
+        headers: headers,
+        body: jsonEncode({'codRota': codRota}),
       );
 
       if (response.statusCode == 200) {
