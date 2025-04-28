@@ -273,31 +273,31 @@ class _MenuState extends State<Menu> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                              'Configurações (a implementar)',
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.settings, color: Colors.blue),
-                      tooltip: 'Configurações',
-                    ),
+                    // IconButton(
+                    //   onPressed: () {
+                    //     ScaffoldMessenger.of(context).showSnackBar(
+                    //       SnackBar(
+                    //         content: const Text(
+                    //           'Configurações (a implementar)',
+                    //         ),
+                    //         behavior: SnackBarBehavior.floating,
+                    //         margin: const EdgeInsets.symmetric(
+                    //           horizontal: 16,
+                    //           vertical: 10,
+                    //         ),
+                    //         padding: const EdgeInsets.symmetric(
+                    //           horizontal: 16,
+                    //           vertical: 8,
+                    //         ),
+                    //         shape: RoundedRectangleBorder(
+                    //           borderRadius: BorderRadius.circular(8),
+                    //         ),
+                    //       ),
+                    //     );
+                    //   },
+                    //   icon: const Icon(Icons.settings, color: Colors.blue),
+                    //   tooltip: 'Configurações',
+                    // ),
                   ],
                 ),
               ),

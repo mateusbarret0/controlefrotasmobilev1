@@ -237,7 +237,7 @@ class _ConsultaViagensScreenState extends State<ConsultaViagensScreen> {
               ],
             ),
           ),
-          const Icon(Icons.settings, color: Colors.blue),
+          // const Icon(Icons.settings, color: Colors.blue),
         ],
       ),
     );
@@ -368,9 +368,11 @@ class _ViagemCard extends StatelessWidget {
         break;
       default:
         statusColor = const Color.fromARGB(255, 255, 200, 0);
-        statusTexto = 'Pendente';
+        statusTexto = status;
+        break;
     }
 
+    final bool isActionable = status != 'Aprovado' && status != 'Reprovado';
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -439,21 +441,24 @@ class _ViagemCard extends StatelessWidget {
                 if (isSupervisor) ...[
                   IconButton(
                     iconSize: 30,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.check_circle_outline,
-                      color: Colors.green,
+                      color: isActionable ? Colors.green : Colors.grey,
                     ),
-                    onPressed: onAprovar,
-                    tooltip: 'Aprovar',
+                    onPressed: isActionable ? onAprovar : null,
+                    tooltip: isActionable ? 'Aprovar' : 'Status já definido',
                     constraints: const BoxConstraints(),
                     padding: EdgeInsets.zero,
                   ),
                   const SizedBox(width: 4),
                   IconButton(
                     iconSize: 30,
-                    icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                    onPressed: onReprovar,
-                    tooltip: 'Reprovar',
+                    icon: Icon(
+                      Icons.cancel_outlined,
+                      color: isActionable ? Colors.red : Colors.grey,
+                    ),
+                    onPressed: isActionable ? onReprovar : null,
+                    tooltip: isActionable ? 'Reprovar' : 'Status já definido',
                     constraints: const BoxConstraints(),
                     padding: EdgeInsets.zero,
                   ),
