@@ -63,6 +63,7 @@ class ApiService {
   Future<Map<String, dynamic>> getUsur(Map<String, dynamic> userData) async {
     try {
       final headers = await _getAuthHeaders();
+      final token = await getToken();
       final response = await http.get(
         Uri.parse(
           '$baseUrl/get/usur?usuario=${userData['usuario']}&senha=${userData['senha']}',
