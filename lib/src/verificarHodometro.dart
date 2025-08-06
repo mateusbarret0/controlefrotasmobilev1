@@ -28,7 +28,8 @@ class HodometroScreen extends StatefulWidget {
   State<HodometroScreen> createState() => _HodometroScreenState();
 }
 
-class _HodometroScreenState extends State<HodometroScreen> {
+class _HodometroScreenState extends State<HodometroScreen>
+    with WidgetsBindingObserver {
   List<CameraDescription>? _cameras;
   CameraController? _cameraController;
   CameraDescription? _selectedCamera;
@@ -51,18 +52,70 @@ class _HodometroScreenState extends State<HodometroScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (_apiKey == null || _apiKey!.isEmpty) {
       _errorMessage = 'Erro Crítico: Chave da API do Gemini não configurada!';
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeCamera();
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _initializeCamera();
+        }
+      });
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cameraController?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    final CameraController? cameraController = _cameraController;
+
+    // Se o controller não existe, ou já estamos inicializando/trocando, não faz nada
+    if (cameraController == null ||
+        !cameraController.value.isInitialized ||
+        _isSwitchingCamera ||
+        _isTakingPicture ||
+        _isAnalyzing ||
+        _isMileageModalOpen) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      // App está inativo ou pausado, podemos liberar o controller se quisermos economizar recursos
+      // ou apenas deixá-lo como está se a re-inicialização for rápida.
+      // Se você descomentar a linha abaixo, terá que re-inicializar no 'resumed'.
+      // cameraController.dispose();
+      // setState(() => _isCameraInitialized = false); // Marcar como não inicializado
+      debugPrint("App Lifecycle: Paused/Inactive");
+    } else if (state == AppLifecycleState.resumed) {
+      // App voltou a ficar ativo
+      debugPrint("App Lifecycle: Resumed");
+      // Se a câmera não estiver inicializada (por exemplo, se você fez dispose acima ou por outra razão),
+      // tente inicializar novamente.
+      if (!_isCameraInitialized) {
+        debugPrint("Re-initializing camera on resume...");
+        // Chame _initializeCamera com um pequeno delay para garantir que a UI esteja pronta
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            _initializeCamera(_selectedCameraIndex);
+          }
+        });
+      } else {
+        debugPrint("Camera already initialized on resume.");
+      }
+    } else if (state == AppLifecycleState.detached) {
+      // O motor Flutter está sendo destruído. A dispose() normal deve cuidar disso.
+      debugPrint("App Lifecycle: Detached");
+    }
   }
 
   Future<bool> _requestCameraPermission() async {
@@ -71,51 +124,94 @@ class _HodometroScreenState extends State<HodometroScreen> {
   }
 
   Future<void> _initializeCamera([int cameraIndex = 0]) async {
+    // Se já estamos no meio de uma troca/inicialização, não faça nada.
     if (_isSwitchingCamera) {
-      debugPrint("InitializeCamera: Already switching, returning.");
+      debugPrint("InitializeCamera: Já inicializando/trocando, retornando.");
       return;
     }
 
-    setState(() {
-      _isCameraInitialized = false;
-      _isSwitchingCamera = true;
-      _errorMessage = null;
-      _imageFile = null;
-    });
+    debugPrint(
+      "InitializeCamera: Iniciando inicialização para índice $cameraIndex.",
+    );
 
+    // 1. Guarda referência ao controller antigo (se existir)
+    CameraController? oldController = _cameraController;
+    _cameraController =
+        null; // Define o controller atual como nulo imediatamente
+
+    // 2. Atualiza o estado para indicar que a inicialização começou
+    //    Verifica se o widget ainda está montado ANTES de chamar setState.
+    if (mounted) {
+      setState(() {
+        _isCameraInitialized = false; // Marca como não inicializada
+        _isSwitchingCamera =
+            true; // Indica que o processo de troca/inicialização começou
+        _errorMessage = null; // Limpa mensagens de erro anteriores
+        _imageFile = null; // Limpa imagem anterior (se houver)
+      });
+    } else {
+      // Se o widget foi desmontado antes mesmo de começarmos,
+      // apenas tenta descartar o controller antigo (se houver) e sai.
+      try {
+        await oldController?.dispose();
+      } catch (e) {
+        debugPrint(
+          "InitializeCamera: Erro ao descartar controller antigo (widget desmontado): $e",
+        );
+      }
+      debugPrint(
+        "InitializeCamera: Widget desmontado no início. Abortando inicialização.",
+      );
+      return; // Sai da função
+    }
+
+    // 3. Tenta descartar o controller antigo (agora que o estado foi atualizado)
+    try {
+      await oldController?.dispose();
+      debugPrint("InitializeCamera: Controller antigo descartado com sucesso.");
+    } catch (e) {
+      debugPrint("InitializeCamera: Erro ao descartar controller antigo: $e");
+      // Loga o erro, mas continua tentando inicializar a nova câmera.
+    }
+
+    // 4. Solicita permissão APÓS limpar o estado anterior
     final hasPermission = await _requestCameraPermission();
-    if (!mounted) return;
+    // Verifica se o widget ainda está montado APÓS a operação assíncrona
+    if (!mounted) {
+      _isSwitchingCamera = false; // Reseta a flag se desmontado
+      return;
+    }
     if (!hasPermission) {
       setState(() {
         _errorMessage = "Permissão de câmera negada.";
         _isCameraInitialized = false;
-        _isSwitchingCamera = false;
+        _isSwitchingCamera =
+            false; // Reseta a flag em caso de falha (permissão)
       });
       return;
     }
 
-    CameraController? oldController = _cameraController;
-    _cameraController = null;
+    // 5. Continua com a inicialização da câmera
     try {
-      await oldController?.dispose();
-      debugPrint("InitializeCamera: Old controller disposed.");
-    } catch (e) {
-      debugPrint("InitializeCamera: Error disposing old controller: $e");
-    }
-
-    try {
+      // Obtém a lista de câmeras (se ainda não tiver sido obtida)
       _cameras ??= await availableCameras();
-      if (!mounted) return;
+      // Verifica se o widget ainda está montado APÓS a operação assíncrona
+      if (!mounted) {
+        _isSwitchingCamera = false; // Reseta a flag se desmontado
+        return;
+      }
 
+      // Validação da lista de câmeras
       if (_cameras == null || _cameras!.isEmpty) {
         setState(() {
           _errorMessage = "Nenhuma câmera encontrada neste dispositivo.";
           _isCameraInitialized = false;
-          _isSwitchingCamera = false;
+          _isSwitchingCamera = false; // Reseta a flag em caso de falha
         });
         return;
       }
 
+      // Seleciona a câmera com base no índice (garantindo que seja válido)
       int validCameraIndex = cameraIndex % _cameras!.length;
       if (validCameraIndex < 0) {
         validCameraIndex = 0;
@@ -124,43 +220,59 @@ class _HodometroScreenState extends State<HodometroScreen> {
       _selectedCamera = _cameras![_selectedCameraIndex];
 
       if (_selectedCamera == null) {
-        throw Exception(
+        throw CameraException(
+          'CameraSelectionError',
           "Falha ao obter CameraDescription válida para o índice $_selectedCameraIndex.",
         );
       }
 
       debugPrint(
-        "InitializeCamera: Attempting to use camera: ${_selectedCamera?.name} (Index: $_selectedCameraIndex)",
+        "InitializeCamera: Tentando usar a câmera: ${_selectedCamera?.name} (Índice: $_selectedCameraIndex)",
       );
 
+      // Cria a nova instância do CameraController
       final CameraController newController = CameraController(
         _selectedCamera!,
-        ResolutionPreset.medium,
-        enableAudio: false,
+        ResolutionPreset.medium, // Use a resolução apropriada
+        enableAudio: false, // Áudio desabilitado é geralmente bom para fotos
+        imageFormatGroup:
+            ImageFormatGroup.jpeg, // Explicitamente define o formato
       );
 
+      // Inicializa o novo controller
       await newController.initialize();
-      debugPrint("InitializeCamera: New controller initialized successfully.");
+      debugPrint("InitializeCamera: Novo controller inicializado com sucesso.");
+
+      // Verifica se o widget ainda está montado APÓS a inicialização assíncrona
       if (!mounted) {
+        // Se desmontado durante a inicialização, descarta o novo controller
         await newController.dispose();
         debugPrint(
-          "InitializeCamera: Widget unmounted after initialize, disposing new controller.",
+          "InitializeCamera: Widget desmontado após initialize, descartando novo controller.",
         );
+        _isSwitchingCamera = false; // Reseta a flag se desmontado
         return;
       }
+
+      // 6. SUCESSO: Atualiza o estado com o novo controller e marca como inicializado
       setState(() {
-        _cameraController = newController;
-        _isCameraInitialized = true;
-        _errorMessage = null;
-        _isSwitchingCamera = false;
+        _cameraController = newController; // Atribui o novo controller
+        _isCameraInitialized = true; // Marca como inicializado
+        _errorMessage = null; // Limpa qualquer erro
+        _isSwitchingCamera =
+            false; // FINALMENTE: Reseta a flag APENAS no sucesso
       });
     } on CameraException catch (e, stacktrace) {
+      // Captura erros específicos da câmera
       debugPrint(
         "InitializeCamera: CameraException! Code: ${e.code}, Description: ${e.description}\n$stacktrace",
       );
+      // Verifica se o widget ainda está montado
       if (!mounted) return;
+      // Atualiza o estado para mostrar o erro
       setState(() {
         String errorMsg;
+        // Mapeia códigos de erro para mensagens amigáveis (como no seu código original)
         switch (e.code) {
           case 'CameraAccessDenied':
             errorMsg = "Acesso à câmera negado. Verifique as permissões.";
@@ -180,29 +292,38 @@ class _HodometroScreenState extends State<HodometroScreen> {
             errorMsg =
                 "Tempo limite excedido durante a configuração da câmera.";
             break;
+          case 'CameraUnresponsive':
+            errorMsg = "A câmera parou de responder. Tente reiniciar o app.";
+            break; // Exemplo adicional
+          // Adicione outros casos conforme necessário
           default:
             errorMsg =
                 "Erro na Câmera (${_selectedCamera?.name ?? 'Desconhecida'}): ${e.description ?? e.code}";
         }
         _errorMessage = errorMsg;
-        _isCameraInitialized = false;
-        _isSwitchingCamera = false;
-        _cameraController = null;
-        _selectedCamera = null;
+        _isCameraInitialized = false; // Não inicializado
+        _isSwitchingCamera = false; // Reseta a flag em caso de falha
+        _cameraController = null; // Garante que o controller é nulo
+        _selectedCamera = null; // Reseta a câmera selecionada
       });
     } catch (e, stacktrace) {
+      // Captura outros erros inesperados
       debugPrint(
-        "InitializeCamera: Unexpected error! Type: ${e.runtimeType}\nError: $e\n$stacktrace",
+        "InitializeCamera: Erro inesperado! Tipo: ${e.runtimeType}\nErro: $e\n$stacktrace",
       );
+      // Verifica se o widget ainda está montado
       if (!mounted) return;
+      // Atualiza o estado para mostrar o erro genérico
       setState(() {
         _errorMessage = "Erro inesperado ao configurar a câmera: $e";
-        _isCameraInitialized = false;
-        _isSwitchingCamera = false;
-        _cameraController = null;
-        _selectedCamera = null;
+        _isCameraInitialized = false; // Não inicializado
+        _isSwitchingCamera = false; // Reseta a flag em caso de falha
+        _cameraController = null; // Garante que o controller é nulo
+        _selectedCamera = null; // Reseta a câmera selecionada
       });
     }
+    // REMOVIDO: O 'finally' que resetava _isSwitchingCamera foi removido
+    // para garantir que a flag só seja resetada nos pontos corretos (sucesso ou falha).
   }
 
   Future<void> _switchCamera() async {

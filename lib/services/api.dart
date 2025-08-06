@@ -5,11 +5,11 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../src/gps.dart';
 
 class ApiService {
-  // final String baseUrl = "http://localhost:8000/api";
-  // final String baseUrl = "http://172.20.10.2:8000/api"; // Localhost IP Roteadorkk
+  final String baseUrl = "http://localhost:8000/api";
+  // final String baseUrl = "http://172.20.10.2:8000/api"; // Localhost IP Roteador
   // final String baseUrl = "http://192.168.1.68:8000/api"; // Localhost IP Casa
-  final String baseUrl =
-      "http://192.168.98.158:8000/api"; // Localhost IP Trabalho
+  // final String baseUrl =
+  //     "http://192.168.98.193:8000/api"; // Localhost IP Trabalho
 
   final httpClient = http.Client();
   Future<String?> getToken() async {
@@ -230,16 +230,16 @@ class ApiService {
     required Map<String, dynamic> end,
     List<Map<String, dynamic>>? stops,
   }) async {
-    // final uri = Uri.parse('http://localhost:8000/api/directions');
+    final uri = Uri.parse('http://localhost:8000/api/directions');
     // final uri = Uri.parse(
     //   'http://172.20.10.2:8000/api/directions',
     // ); // Localhost IP Roteador
     // final uri = Uri.parse(
     //   'http://192.168.1.68:8000/api/directions',
     // ); // Localhost IP Casa
-    final uri = Uri.parse(
-      'http://192.168.98.158:8000/api/directions',
-    ); // Localhost IP Trabalho
+    // final uri = Uri.parse(
+    //   'http://192.168.98.193:8000/api/directions',
+    // ); // Localhost IP Trabalho
     final body = {
       'start': {'latitude': start['latitude'], 'longitude': start['longitude']},
       'end': {'latitude': end['latitude'], 'longitude': end['longitude']},
